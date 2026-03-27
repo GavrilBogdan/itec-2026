@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text>Nicu Gutu sa fie cu noi!</Text>
+      <Text style={styles.title}>Nicu Gutu sa fie cu noi!</Text>
       <StatusBar style="auto" />
     </View>
   );
@@ -16,5 +16,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#ff6bf5",
     alignItems: "center",
     justifyContent: "center",
+  },
+  title: {
+    fontSize: 40,
+    fontWeight: "bold",
+    color: "#5930ff",
   },
 });
