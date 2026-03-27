@@ -8,6 +8,11 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  Poppins_600SemiBold,
+  useFonts,
+} from "@expo-google-fonts/poppins";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../hooks/use-auth.hook";
 import axios from "axios";
@@ -15,6 +20,7 @@ import axios from "axios";
 export const LandingScreen = () => {
   const navigation = useNavigation<any>();
   const { login } = useAuth();
+  const [fontsLoaded] = useFonts({ Poppins_600SemiBold });
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -73,53 +79,64 @@ export const LandingScreen = () => {
     }
   };
 
+  if (!fontsLoaded) return null;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Autentificare</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
-        value={email}
-        onChangeText={setEmail}
-        placeholderTextColor="#666"
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Parolă"
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-        value={password}
-        onChangeText={setPassword}
-        placeholderTextColor="#666"
-      />
-
-      <TouchableOpacity
-        style={styles.loginButton}
-        onPress={handleLogin}
-        disabled={loading}
+      <LinearGradient
+        colors={["#002A54", "#001630"]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.gradient}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Logare</Text>
-        )}
-      </TouchableOpacity>
+        <Text style={styles.mainTitle}>Surface Siege</Text>
 
-      <View style={styles.separator} />
+        <View style={styles.card}>
+          <Text style={styles.header}>Autentificare</Text>
 
-      <TouchableOpacity
-        style={[styles.loginButton, styles.registerButton]}
-        onPress={() => navigation.navigate("RegisterScreen")}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>Înregistrare</Text>
-      </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+            placeholderTextColor="#9CB6DA"
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Parolă"
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={password}
+            onChangeText={setPassword}
+            placeholderTextColor="#9CB6DA"
+          />
+
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Logare</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => navigation.navigate("RegisterScreen")}
+            disabled={loading}
+          >
+            <Text style={styles.secondaryButtonText}>Înregistrare</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
     </View>
   );
 };
@@ -127,36 +144,75 @@ export const LandingScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 30,
+  },
+  gradient: {
+    flex: 1,
+    paddingHorizontal: 24,
     justifyContent: "center",
-    backgroundColor: "#fff",
+    alignItems: "center",
+  },
+  mainTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 34,
+    color: "#F8F9FA",
+    textAlign: "center",
+    marginBottom: 52,
+    letterSpacing: 1.2,
+    textShadowColor: "rgba(130, 176, 255, 0.65)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 14,
+  },
+  card: {
+    width: "100%",
+    backgroundColor: "rgba(10, 47, 97, 0.82)",
+    borderRadius: 24,
+    padding: 26,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
   },
   header: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 40,
-    textAlign: "center",
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 24,
+    color: "#FFFFFF",
   },
   input: {
-    height: 50,
-    borderColor: "#ddd",
+    height: 52,
+    borderColor: "#2C5D99",
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 15,
-    marginBottom: 15,
+    marginBottom: 16,
     fontSize: 16,
+    color: "#FFFFFF",
+    backgroundColor: "#0C2340",
   },
-  loginButton: {
-    backgroundColor: "#72b9f4",
-    padding: 15,
-    borderRadius: 8,
+  primaryButton: {
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: "#2962FF",
     alignItems: "center",
-    marginTop: 10,
+    justifyContent: "center",
+    marginTop: 8,
   },
-  registerButton: {
-    backgroundColor: "red",
-    marginTop: 0,
+  secondaryButton: {
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2C5D99",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
   },
-  buttonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-  separator: { height: 1, backgroundColor: "#eee", marginVertical: 20 },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "700",
+  },
+  secondaryButtonText: {
+    color: "#D9E7FF",
+    fontSize: 17,
+    fontWeight: "700",
+  },
 });
