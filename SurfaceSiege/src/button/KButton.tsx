@@ -1,6 +1,11 @@
 import { StyleSheet, TouchableOpacity, Text } from "react-native";
 
-export function KButton({ title, onPress }) {
+interface KButtonProps {
+  title: string;
+  onPress: () => void;
+}
+
+export function KButton({ title, onPress }: KButtonProps) {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <Text style={styles.text}>{title}</Text>
