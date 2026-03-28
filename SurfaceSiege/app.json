@@ -12,7 +12,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.surfacesiege.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,13 +22,22 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.surfacesiege.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "@viro-community/react-viro",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow SurfaceSiege to use the camera for AR mapping.",
+          "microphonePermission": "Allow SurfaceSiege to use the microphone."
+        }
+      ]
     ]
   }
 }
