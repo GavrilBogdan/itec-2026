@@ -57,23 +57,28 @@ export const LandingScreen = () => {
 
       const response = await axios.post(`${BASE_URL}/users/login`, {
         email: cleanEmail,
-        password: cleanPassword,
+        parola: cleanPassword,
       });
 
-      const token = response?.data?.token;
+      const token = response?.data?.token || response?.data?.accessToken;
       const rawToken =
-        typeof token === "string" ? token.replace("Bearer ", "") : "";
+        typeof token === "string" ? token.replace(/^Bearer\s+/i, "").trim() : "";
 
-      if (!rawToken) {
-        Alert.alert("Eroare", "Token invalid primit de la server.");
+      if (!rawToken || rawToken.split(".").length !== 3) {
+        Alert.alert("Eroare", "Serverul a returnat un token invalid.");
         return;
       }
 
       login(rawToken);
       Alert.alert("Succes", "Autentificare reușită!");
-    } catch (err) {
-      Alert.alert("Eșec", "Credențiale incorecte sau server oprit.");
-      console.log("Eroare login:", err);
+    } catch (err: any) {
+      console.log("Status eroare:", err?.response?.status);
+      console.log("Mesaj eroare server:", err?.response?.data);
+      const errorMessage =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        "Credențiale incorecte sau server oprit.";
+      Alert.alert("Eșec", errorMessage);
     } finally {
       setLoading(false);
     }

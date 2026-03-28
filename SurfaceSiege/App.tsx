@@ -19,7 +19,7 @@ import axios from "axios";
 axios.defaults.baseURL = "https://ana-unfakable-shenita.ngrok-free.dev";
 axios.interceptors.request.use((cfg) => {
   const jwt = store.get(tokenAtom);
-  if (jwt) cfg.headers.Authorization = jwt;
+  if (jwt) cfg.headers.Authorization = `Bearer ${jwt}`;
   return cfg;
 });
 
