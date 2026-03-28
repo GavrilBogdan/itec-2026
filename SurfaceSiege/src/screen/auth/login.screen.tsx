@@ -12,7 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 import { KButton } from "../../button/KButton";
 import { useAuth } from "../../hooks/use-auth.hook";
 import axios from "axios";
-
+import { parseJwtFromResponse } from "../../auth-token";
 export const LoginScreen = () => {
   const navigation = useNavigation<any>();
   const { login } = useAuth();
@@ -52,24 +52,28 @@ export const LoginScreen = () => {
 
       const response = await axios.post(`${BASE_URL}/users/login`, {
         email: cleanEmail,
-        password: cleanPassword,
+        parola: cleanPassword,
       });
 
-      const token = response?.data?.token;
-      const rawToken =
-        typeof token === "string" ? token.replace("Bearer ", "") : "";
-
+      const tokenValue = response?.data?.token || response?.data?.accessToken;
+      const { token: rawToken, error } = parseJwtFromResponse(tokenValue);
       if (!rawToken) {
-        Alert.alert("Eroare", "Token invalid primit de la server.");
+        Alert.alert("Eroare", error ?? "Serverul a returnat un token invalid.");
         return;
       }
 
       login(rawToken);
       Alert.alert("Succes", "Te-ai autentificat cu succes!");
       // navigation.navigate("ActivityScreen");
-    } catch (err) {
-      Alert.alert("Eșec", "Credențiale incorecte sau server oprit.");
-      console.log("Eroare login:", err);
+    } catch (err: unknown) {
+      const responseData = axios.isAxiosError<{ error?: string; message?: string }>(err)
+        ? err.response?.data
+        : undefined;
+      const errorMessage =
+        responseData?.error ||
+        responseData?.message ||
+        "Credențiale incorecte sau server oprit.";
+      Alert.alert("Eșec", errorMessage);
     } finally {
       setLoading(false);
     }
