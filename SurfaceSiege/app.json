@@ -22,11 +22,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
       "package": "com.surfacesiege.app"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",
@@ -34,10 +30,10 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow SurfaceSiege to use the camera for AR mapping.",
-          "microphonePermission": "Allow SurfaceSiege to use the microphone."
+          "cameraPermission": "Allow SurfaceSiege to use the camera for AR mapping."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

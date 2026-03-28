@@ -13,7 +13,7 @@ import io from "socket.io-client";
 import Slider from "@react-native-community/slider";
 import axios from "axios";
 
-// --- IMPORTURI VIRO AR ---
+// --- IMPORTURI VIRO AR (SURSĂ COMUNITATE) ---
 import {
   ViroARScene,
   ViroARImageMarker,
@@ -24,11 +24,11 @@ import {
 
 const { width, height } = Dimensions.get("window");
 
-// 🚨 SCHIMBĂ CU IP-UL SAU NGROK-UL COLEGULUI
+// 🔗 URL BACKEND (NGROK)
 const SERVER_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
 
 // =====================================================================
-// 1. CONFIGURARE IMAGINI LOCALE (Trebuie să fie în /assets/)
+// 1. CONFIGURARE TARGETS (IMAGINI)
 // =====================================================================
 ViroARTrackingTargets.createTargets({
   afis1: {
@@ -84,7 +84,7 @@ ViroARTrackingTargets.createTargets({
 });
 
 // =====================================================================
-// 2. SCENA AR (Holograma care apare pe afiș)
+// 2. SCENA AR (ELEMENTE 3D)
 // =====================================================================
 const MarkerSceneAR = (props: any) => {
   const { setLockedTarget } = props.sceneNavigator.viroAppProps;
@@ -98,9 +98,8 @@ const MarkerSceneAR = (props: any) => {
           onAnchorFound={() => setLockedTarget(`afis${i}`)}
           onAnchorUpdated={() => setLockedTarget(`afis${i}`)}
         >
-          {/* Textul 3D lipit de poster */}
           <ViroText
-            text="HACKED"
+            text="SYSTEM COMPROMISED"
             scale={[0.05, 0.05, 0.05]}
             position={[0, 0, 0.02]}
             style={styles.arTextHologram}
@@ -112,7 +111,7 @@ const MarkerSceneAR = (props: any) => {
 };
 
 // =====================================================================
-// 3. ECRANUL PRINCIPAL
+// 3. ECRANUL PRINCIPAL (LOGICĂ & UI)
 // =====================================================================
 export const ScanScreen = () => {
   const [activeTarget, setActiveTarget] = useState<string | null>(null);
@@ -121,6 +120,8 @@ export const ScanScreen = () => {
     Record<string, any[]>
   >({});
   const [currentPath, setCurrentPath] = useState<string>("");
+
+  // Ref pentru a preveni re-detectarea instantanee după disconnect
   const lastClosedTarget = useRef({ id: "", time: 0 });
 
   // UI State
@@ -134,13 +135,12 @@ export const ScanScreen = () => {
 
   const socketRef = useRef<any>(null);
 
-  // --- LOGICĂ SOCKETS ---
+  // --- SOCKETS ---
   useEffect(() => {
     socketRef.current = io(SERVER_URL);
     socketRef.current.on(
       "new_line",
       (data: { posterId: number; line: any }) => {
-        // Verificăm dacă linia aparține posterului deschis acum
         if (activePosterDbId && data.posterId === activePosterDbId) {
           setDrawingsByTarget((prev) => ({
             ...prev,
@@ -152,56 +152,54 @@ export const ScanScreen = () => {
     return () => socketRef.current?.disconnect();
   }, [activePosterDbId, activeTarget]);
 
-  // --- LOGICĂ IDENTIFICARE & SYNC DB ---
+  // --- LOGICĂ IDENTIFICARE TARGET ---
   const handleSetLockedTarget = async (targetName: string) => {
     if (activeTarget === targetName) return;
 
+    // Protecție: dacă tocmai am închis acest afiș, așteaptă 3 secunde înainte de re-lock
     const now = Date.now();
     if (
       lastClosedTarget.current.id === targetName &&
       now - lastClosedTarget.current.time < 3000
-    )
+    ) {
       return;
+    }
 
     try {
-      console.log("🔍 Scanat:", targetName);
+      console.log("🔍 Identificat:", targetName);
       const postersRes = await axios.get(`${SERVER_URL}/war/posters`);
-
-      // Extragem doar numărul (ex: din "afis1" luăm "1")
       const index = targetName.replace("afis", "");
-
-      // Căutăm în JSON-ul colegului (ex: unde nume este "Afiș 1")
       const dbPoster = postersRes.data.find((p: any) => p.nume.includes(index));
 
       if (dbPoster) {
-        console.log("✅ Match DB:", dbPoster.nume, "ID:", dbPoster.id);
         setActivePosterDbId(dbPoster.id);
         setActiveTarget(targetName);
 
-        // Luăm desenele salvate anterior
         const drawingsRes = await axios.get(
           `${SERVER_URL}/war/poster/${dbPoster.id}/drawings`,
         );
-
-        // Parsăm datele din Prisma (points e obiectul nostru de linie)
-        const paths = drawingsRes.data.map((d: any) => {
-          return typeof d.points === "string" ? JSON.parse(d.points) : d.points;
-        });
-
+        const paths = drawingsRes.data.map((d: any) =>
+          typeof d.points === "string" ? JSON.parse(d.points) : d.points,
+        );
         setDrawingsByTarget((prev) => ({ ...prev, [targetName]: paths }));
       }
     } catch (e) {
-      console.error("🚨 Eroare legătură backend:", e);
+      console.error("🚨 Sync Error:", e);
     }
   };
 
+  // --- FIX DISCONNECT ---
   const handleCloseTarget = () => {
-    lastClosedTarget.current = { id: activeTarget || "", time: Date.now() };
-    setActiveTarget(null);
-    setActivePosterDbId(null);
+    if (activeTarget) {
+      // Setăm ref-ul ca să știm că l-am închis manual acum
+      lastClosedTarget.current = { id: activeTarget, time: Date.now() };
+      setActiveTarget(null);
+      setActivePosterDbId(null);
+      console.log("⚠️ Deconectat manual de la target.");
+    }
   };
 
-  // --- PAN RESPONDER (DESEN) ---
+  // --- PAN RESPONDER (DRAWING) ---
   const colorRef = useRef(selectedColor);
   const sizeRef = useRef(brushSize);
   useEffect(() => {
@@ -226,57 +224,35 @@ export const ScanScreen = () => {
           setCurrentPath((prev) => `${prev} L${locationX},${locationY}`);
         },
         onPanResponderRelease: () => {
-          setCurrentPath((finalPath) => {
-            if (finalPath && activeTarget && activePosterDbId) {
-              const newLine = {
-                d: finalPath,
-                stroke: colorRef.current,
-                strokeWidth: sizeRef.current,
-              };
-
-              // 1. Salvare locală instantă
-              setDrawingsByTarget((prev) => ({
-                ...prev,
-                [activeTarget]: [...(prev[activeTarget] || []), newLine],
-              }));
-
-              // 2. Trimitere prin SOCKET
-              socketRef.current.emit("draw_line", {
+          if (currentPath && activeTarget && activePosterDbId) {
+            const newLine = {
+              d: currentPath,
+              stroke: colorRef.current,
+              strokeWidth: sizeRef.current,
+            };
+            setDrawingsByTarget((prev) => ({
+              ...prev,
+              [activeTarget]: [...(prev[activeTarget] || []), newLine],
+            }));
+            socketRef.current.emit("draw_line", {
+              posterId: activePosterDbId,
+              line: newLine,
+            });
+            axios
+              .post(`${SERVER_URL}/war/save`, {
+                points: newLine,
+                area: 10,
+                userId: 1,
+                teamId: 1,
                 posterId: activePosterDbId,
-                line: newLine,
-              });
-
-              // 3. Salvare în DB prin REST (POST /war/save)
-              axios
-                .post(`${SERVER_URL}/war/save`, {
-                  points: newLine,
-                  area: 10,
-                  userId: 1, // Înlocuiește cu id-ul din login
-                  teamId: 1, // Înlocuiește cu echipa userului
-                  posterId: activePosterDbId,
-                })
-                .catch((e) => console.log("Eroare persistenta:", e.message));
-            }
-            return "";
-          });
+              })
+              .catch((e) => console.log("DB Save Error:", e.message));
+          }
+          setCurrentPath("");
         },
       }),
-    [activeTarget, activePosterDbId],
+    [activeTarget, activePosterDbId, currentPath],
   );
-
-  const handleNuke = () => {
-    if (!activeTarget) return;
-    setDrawingsByTarget((prev) => ({ ...prev, [activeTarget]: [] }));
-  };
-
-  const handleUndo = () => {
-    if (!activeTarget) return;
-    setDrawingsByTarget((prev) => {
-      const current = [...(prev[activeTarget] || [])];
-      current.pop();
-      return { ...prev, [activeTarget]: current };
-    });
-  };
 
   const livePreviewColor = `rgb(${r}, ${g}, ${b})`;
   const activePaths = activeTarget ? drawingsByTarget[activeTarget] || [] : [];
@@ -291,50 +267,53 @@ export const ScanScreen = () => {
       />
 
       {activeTarget ? (
-        <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
+        <>
+          {/* ZONA DE DESEN (Are panHandlers, deci "fură" atingerile pentru desenat) */}
+          <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
+            <Svg style={StyleSheet.absoluteFill}>
+              {activePaths.map((path, index) => (
+                <Path
+                  key={index}
+                  d={path.d}
+                  stroke={path.stroke}
+                  strokeWidth={path.strokeWidth}
+                  fill="none"
+                  strokeLinecap="round"
+                />
+              ))}
+              {currentPath ? (
+                <Path
+                  d={currentPath}
+                  stroke={selectedColor}
+                  strokeWidth={brushSize}
+                  fill="none"
+                  strokeLinecap="round"
+                />
+              ) : null}
+            </Svg>
+          </View>
+
+          {/* BUTON DISCONNECT SCOS ÎN AFARĂ (Ca să meargă apăsat) */}
           <TouchableOpacity
             style={styles.closeTargetBtn}
             onPress={handleCloseTarget}
           >
             <Text style={styles.closeTargetText}>
-              [ INCHIDE {activeTarget.toUpperCase()} ]
+              [ DISCONNECT {activeTarget.toUpperCase()} ]
             </Text>
           </TouchableOpacity>
-          <Svg style={StyleSheet.absoluteFill}>
-            {activePaths.map((path, index) => (
-              <Path
-                key={index}
-                d={path.d}
-                stroke={path.stroke}
-                strokeWidth={path.strokeWidth}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
-            {currentPath ? (
-              <Path
-                d={currentPath}
-                stroke={selectedColor}
-                strokeWidth={brushSize}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ) : null}
-          </Svg>
-        </View>
+        </>
       ) : (
         <View style={styles.scanningOverlay} pointerEvents="none">
-          <Text style={styles.scanningText}>CAUTA UN AFIS...</Text>
+          <Text style={styles.scanningText}>SEARCHING FOR SIGNAL...</Text>
         </View>
       )}
 
-      {/* --- UI TOOLS (Color Picker) --- */}
+      {/* --- COLOR PICKER --- */}
       <Modal visible={isColorPickerVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.colorPickerContainer}>
-            <Text style={styles.modalTitle}>COLOR OVERRIDE</Text>
+            <Text style={styles.modalTitle}>HEX OVERRIDE</Text>
             <View
               style={[
                 styles.colorPreviewBox,
@@ -354,11 +333,9 @@ export const ScanScreen = () => {
                   style={styles.rgbSlider}
                   minimumValue={0}
                   maximumValue={255}
-                  step={1}
                   value={item.v}
                   onValueChange={item.s}
                   minimumTrackTintColor={item.c}
-                  thumbTintColor="#FFF"
                 />
               </View>
             ))}
@@ -376,7 +353,7 @@ export const ScanScreen = () => {
                   setIsColorPickerVisible(false);
                 }}
               >
-                <Text style={styles.applyColorText}>APPLY</Text>
+                <Text style={styles.applyColorText}>CONFIRM</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -390,7 +367,7 @@ export const ScanScreen = () => {
             onPress={() => setIsMenuVisible(!isMenuVisible)}
           >
             <Text style={styles.toggleMenuText}>
-              {isMenuVisible ? "▼ ASCUNDE ▼" : "▲ MENIU ▲"}
+              {isMenuVisible ? "▼ CLOSE TERMINAL" : "▲ OPEN TERMINAL"}
             </Text>
           </TouchableOpacity>
           {isMenuVisible && (
@@ -406,29 +383,41 @@ export const ScanScreen = () => {
                       { backgroundColor: selectedColor },
                     ]}
                   />
-                  <Text style={styles.colorSelectorText}>CULOARE</Text>
+                  <Text style={styles.colorSelectorText}>COLOR</Text>
                 </TouchableOpacity>
                 <View style={styles.sliderContainer}>
-                  <Text style={styles.toolLabel}>
-                    GROSIME: {Math.round(brushSize)}
-                  </Text>
                   <Slider
-                    style={{ flex: 1, height: 40 }}
+                    style={{ flex: 1 }}
                     minimumValue={1}
                     maximumValue={30}
                     value={brushSize}
                     onValueChange={setBrushSize}
                     minimumTrackTintColor={selectedColor}
-                    thumbTintColor="#FFF"
                   />
                 </View>
               </View>
               <View style={styles.actionRow}>
-                <TouchableOpacity style={styles.actionBtn} onPress={handleUndo}>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() =>
+                    setDrawingsByTarget((prev) => ({
+                      ...prev,
+                      [activeTarget]: prev[activeTarget].slice(0, -1),
+                    }))
+                  }
+                >
                   <Text style={styles.actionBtnText}>UNDO</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.nukeBtn} onPress={handleNuke}>
-                  <Text style={styles.nukeBtnText}>[ STERGE ]</Text>
+                <TouchableOpacity
+                  style={styles.nukeBtn}
+                  onPress={() =>
+                    setDrawingsByTarget((prev) => ({
+                      ...prev,
+                      [activeTarget]: [],
+                    }))
+                  }
+                >
+                  <Text style={styles.nukeBtnText}>[ NUKE ]</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -444,8 +433,7 @@ const styles = StyleSheet.create({
   arTextHologram: {
     fontFamily: "monospace",
     fontSize: 20,
-    color: "#FF003C",
-    textAlignVertical: "center",
+    color: "#00e1ff",
     textAlign: "center",
     fontWeight: "bold",
   },
@@ -453,28 +441,28 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.8)",
   },
   scanningText: {
-    color: "rgba(0, 255, 65, 0.8)",
+    color: "#00e1ff",
     fontFamily: "monospace",
     fontSize: 18,
     fontWeight: "bold",
-    letterSpacing: 3,
+    letterSpacing: 2,
   },
   closeTargetBtn: {
     position: "absolute",
-    top: 50,
+    top: 60,
     alignSelf: "center",
-    backgroundColor: "rgba(255,0,0,0.8)",
+    backgroundColor: "rgba(255,0,0,0.2)",
     padding: 12,
     borderRadius: 8,
-    zIndex: 10,
     borderWidth: 1,
-    borderColor: "#FFF",
-  },
+    borderColor: "#ff0000",
+    zIndex: 999,
+  }, // Am pus un zIndex ca să fiu sigur că stă deasupra la SVG
   closeTargetText: {
-    color: "#FFF",
+    color: "#ff0000",
     fontWeight: "bold",
     fontFamily: "monospace",
   },
@@ -484,154 +472,122 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: "center",
+    zIndex: 100,
   },
   toggleMenuBtn: {
     backgroundColor: "rgba(10, 10, 10, 0.9)",
-    paddingVertical: 8,
-    paddingHorizontal: 30,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderTopLeftRadius: 15,
     borderTopRightRadius: 15,
   },
   toggleMenuText: {
-    color: "#0040ff",
+    color: "#00e1ff",
     fontFamily: "monospace",
-    fontWeight: "bold",
     fontSize: 12,
+    fontWeight: "bold",
   },
   toolsOverlay: {
     width: "100%",
-    backgroundColor: "rgba(10, 10, 10, 0.9)",
+    backgroundColor: "rgba(10, 10, 10, 0.95)",
     padding: 20,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
   },
   topToolsRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     marginBottom: 20,
     gap: 15,
   },
   colorSelectorBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "#222",
     padding: 10,
-    borderRadius: 12,
+    borderRadius: 10,
   },
   currentColorIndicator: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    marginRight: 8,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 10,
     borderWidth: 1,
-    borderColor: "#FFF",
+    borderColor: "#fff",
   },
-  colorSelectorText: { color: "#FFF", fontFamily: "monospace", fontSize: 14 },
+  colorSelectorText: { color: "#fff", fontFamily: "monospace" },
   sliderContainer: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "#222",
     padding: 5,
-    borderRadius: 12,
+    borderRadius: 10,
   },
-  toolLabel: {
-    color: "#FFF",
-    fontFamily: "monospace",
-    width: 85,
-    fontSize: 11,
-  },
-  actionRow: { flexDirection: "row", justifyContent: "space-between", gap: 15 },
+  actionRow: { flexDirection: "row", gap: 10 },
   actionBtn: {
     flex: 1,
-    paddingVertical: 14,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
+    backgroundColor: "#333",
+    padding: 15,
+    borderRadius: 10,
     alignItems: "center",
   },
-  actionBtnText: { color: "#FFF", fontFamily: "monospace", fontSize: 16 },
+  actionBtnText: { color: "#fff", fontFamily: "monospace" },
   nukeBtn: {
-    flex: 2,
-    paddingVertical: 14,
-    backgroundColor: "rgba(255, 0, 60, 0.15)",
-    borderRadius: 12,
+    flex: 1,
+    backgroundColor: "rgba(255,0,0,0.1)",
+    padding: 15,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#FF003C",
+    borderColor: "#ff0000",
     alignItems: "center",
   },
   nukeBtnText: {
-    color: "#FF003C",
+    color: "#ff0000",
     fontFamily: "monospace",
-    fontWeight: "900",
-    fontSize: 16,
+    fontWeight: "bold",
   },
   modalOverlay: {
     flex: 1,
+    backgroundColor: "rgba(0,0,0,0.9)",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.85)",
   },
   colorPickerContainer: {
-    width: width * 0.85,
+    width: "85%",
     backgroundColor: "#111",
-    borderRadius: 20,
     padding: 25,
-    alignItems: "center",
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#333",
   },
   modalTitle: {
-    color: "#FFF",
-    fontSize: 18,
-    fontFamily: "monospace",
+    color: "#00e1ff",
+    textAlign: "center",
     marginBottom: 20,
+    fontFamily: "monospace",
   },
   colorPreviewBox: {
     width: "100%",
-    height: 60,
+    height: 50,
     borderRadius: 10,
-    marginBottom: 25,
-    borderWidth: 2,
-    borderColor: "#FFF",
+    marginBottom: 20,
   },
-  rgbRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    marginBottom: 15,
-  },
-  rgbLabel: {
-    fontFamily: "monospace",
-    fontWeight: "900",
-    fontSize: 18,
-    width: 30,
-  },
+  rgbRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  rgbLabel: { color: "#fff", width: 30, fontFamily: "monospace" },
   rgbSlider: { flex: 1, height: 40 },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginTop: 20,
-    gap: 15,
-  },
+  modalActions: { flexDirection: "row", gap: 10, marginTop: 20 },
   closeModalBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
+    padding: 15,
     borderWidth: 1,
     borderColor: "#555",
+    borderRadius: 10,
+    alignItems: "center",
   },
-  closeModalText: { color: "#FFF", fontFamily: "monospace" },
+  closeModalText: { color: "#fff" },
   applyColorBtn: {
     flex: 1,
-    paddingVertical: 12,
-    backgroundColor: "rgba(0, 255, 65, 0.2)",
-    borderRadius: 8,
+    backgroundColor: "#00e1ff",
+    padding: 15,
+    borderRadius: 10,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#00F",
   },
-  applyColorText: { color: "#00F", fontFamily: "monospace", fontWeight: "900" },
+  applyColorText: { color: "#000", fontWeight: "bold" },
 });
