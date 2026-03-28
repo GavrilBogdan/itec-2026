@@ -11,6 +11,7 @@ import {
 import Svg, { Path } from "react-native-svg";
 import io from "socket.io-client";
 import Slider from "@react-native-community/slider";
+import axios from "axios";
 
 // --- IMPORTURI VIRO AR ---
 import {
@@ -23,11 +24,11 @@ import {
 
 const { width, height } = Dimensions.get("window");
 
-// ATENȚIE: Schimbă cu IP-ul tău local
-const SERVER_URL = "http://192.168.1.100:3000";
+// 🚨 SCHIMBĂ CU IP-UL SAU NGROK-UL COLEGULUI
+const SERVER_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
 
 // =====================================================================
-// 1. BAZA DE DATE DE AFIȘE (Imagini Locale)
+// 1. CONFIGURARE IMAGINI LOCALE (Trebuie să fie în /assets/)
 // =====================================================================
 ViroARTrackingTargets.createTargets({
   afis1: {
@@ -83,105 +84,29 @@ ViroARTrackingTargets.createTargets({
 });
 
 // =====================================================================
-// 2. SCENA AR CARE SCANEAZĂ CONTINUU
+// 2. SCENA AR (Holograma care apare pe afiș)
 // =====================================================================
 const MarkerSceneAR = (props: any) => {
   const { setLockedTarget } = props.sceneNavigator.viroAppProps;
 
-  // Această funcție randează holograma 3D direct pe afișul din lumea reală
-  const renderHologram = () => (
-    <ViroText
-      text="HACKED"
-      scale={[0.05, 0.05, 0.05]}
-      position={[0, 0, 0.02]} // Iese 2 centimetri din afiș spre tine
-      style={styles.arTextHologram}
-    />
-  );
-
   return (
     <ViroARScene>
-      {/* Folosim atât onAnchorFound cât și onAnchorUpdated. 
-        Asta forțează sistemul să re-scaneze afișul chiar și dacă a fost închis anterior.
-      */}
-      <ViroARImageMarker
-        target={"afis1"}
-        onAnchorFound={() => setLockedTarget("afis1")}
-        onAnchorUpdated={() => setLockedTarget("afis1")}
-      >
-        {renderHologram()}
-      </ViroARImageMarker>
-
-      <ViroARImageMarker
-        target={"afis2"}
-        onAnchorFound={() => setLockedTarget("afis2")}
-        onAnchorUpdated={() => setLockedTarget("afis2")}
-      >
-        {renderHologram()}
-      </ViroARImageMarker>
-
-      <ViroARImageMarker
-        target={"afis3"}
-        onAnchorFound={() => setLockedTarget("afis3")}
-        onAnchorUpdated={() => setLockedTarget("afis3")}
-      >
-        {renderHologram()}
-      </ViroARImageMarker>
-
-      <ViroARImageMarker
-        target={"afis4"}
-        onAnchorFound={() => setLockedTarget("afis4")}
-        onAnchorUpdated={() => setLockedTarget("afis4")}
-      >
-        {renderHologram()}
-      </ViroARImageMarker>
-
-      <ViroARImageMarker
-        target={"afis5"}
-        onAnchorFound={() => setLockedTarget("afis5")}
-        onAnchorUpdated={() => setLockedTarget("afis5")}
-      >
-        {renderHologram()}
-      </ViroARImageMarker>
-
-      <ViroARImageMarker
-        target={"afis6"}
-        onAnchorFound={() => setLockedTarget("afis6")}
-        onAnchorUpdated={() => setLockedTarget("afis6")}
-      >
-        {renderHologram()}
-      </ViroARImageMarker>
-
-      <ViroARImageMarker
-        target={"afis7"}
-        onAnchorFound={() => setLockedTarget("afis7")}
-        onAnchorUpdated={() => setLockedTarget("afis7")}
-      >
-        {renderHologram()}
-      </ViroARImageMarker>
-
-      <ViroARImageMarker
-        target={"afis8"}
-        onAnchorFound={() => setLockedTarget("afis8")}
-        onAnchorUpdated={() => setLockedTarget("afis8")}
-      >
-        {renderHologram()}
-      </ViroARImageMarker>
-
-      <ViroARImageMarker
-        target={"afis9"}
-        onAnchorFound={() => setLockedTarget("afis9")}
-        onAnchorUpdated={() => setLockedTarget("afis9")}
-      >
-        {renderHologram()}
-      </ViroARImageMarker>
-
-      <ViroARImageMarker
-        target={"afis10"}
-        onAnchorFound={() => setLockedTarget("afis10")}
-        onAnchorUpdated={() => setLockedTarget("afis10")}
-      >
-        {renderHologram()}
-      </ViroARImageMarker>
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+        <ViroARImageMarker
+          key={`marker${i}`}
+          target={`afis${i}`}
+          onAnchorFound={() => setLockedTarget(`afis${i}`)}
+          onAnchorUpdated={() => setLockedTarget(`afis${i}`)}
+        >
+          {/* Textul 3D lipit de poster */}
+          <ViroText
+            text="HACKED"
+            scale={[0.05, 0.05, 0.05]}
+            position={[0, 0, 0.02]}
+            style={styles.arTextHologram}
+          />
+        </ViroARImageMarker>
+      ))}
     </ViroARScene>
   );
 };
@@ -191,58 +116,94 @@ const MarkerSceneAR = (props: any) => {
 // =====================================================================
 export const ScanScreen = () => {
   const [activeTarget, setActiveTarget] = useState<string | null>(null);
-
-  // Ref pentru a ști când am închis ultima oară (Cooldown de 3 secunde)
-  const lastClosedTarget = useRef({ id: "", time: 0 });
-
+  const [activePosterDbId, setActivePosterDbId] = useState<number | null>(null);
   const [drawingsByTarget, setDrawingsByTarget] = useState<
     Record<string, any[]>
   >({});
   const [currentPath, setCurrentPath] = useState<string>("");
+  const lastClosedTarget = useRef({ id: "", time: 0 });
 
+  // UI State
   const [selectedColor, setSelectedColor] = useState("rgb(0, 255, 65)");
   const [brushSize, setBrushSize] = useState(5);
-
   const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(true);
-
   const [r, setR] = useState(0);
   const [g, setG] = useState(255);
   const [b, setB] = useState(65);
 
   const socketRef = useRef<any>(null);
 
+  // --- LOGICĂ SOCKETS ---
   useEffect(() => {
     socketRef.current = io(SERVER_URL);
-
-    socketRef.current.on("init_canvas", (existingDrawingsByTarget: any) => {
-      if (existingDrawingsByTarget) {
-        setDrawingsByTarget(existingDrawingsByTarget);
-      }
-    });
-
     socketRef.current.on(
       "new_line",
-      (data: { targetId: string; line: any }) => {
-        setDrawingsByTarget((prev) => ({
-          ...prev,
-          [data.targetId]: [...(prev[data.targetId] || []), data.line],
-        }));
+      (data: { posterId: number; line: any }) => {
+        // Verificăm dacă linia aparține posterului deschis acum
+        if (activePosterDbId && data.posterId === activePosterDbId) {
+          setDrawingsByTarget((prev) => ({
+            ...prev,
+            [activeTarget!]: [...(prev[activeTarget!] || []), data.line],
+          }));
+        }
       },
     );
+    return () => socketRef.current?.disconnect();
+  }, [activePosterDbId, activeTarget]);
 
-    socketRef.current.on("canvas_cleared", (targetId: string) => {
-      setDrawingsByTarget((prev) => ({ ...prev, [targetId]: [] }));
-    });
+  // --- LOGICĂ IDENTIFICARE & SYNC DB ---
+  const handleSetLockedTarget = async (targetName: string) => {
+    if (activeTarget === targetName) return;
 
-    return () => {
-      if (socketRef.current) socketRef.current.disconnect();
-    };
-  }, []);
+    const now = Date.now();
+    if (
+      lastClosedTarget.current.id === targetName &&
+      now - lastClosedTarget.current.time < 3000
+    )
+      return;
 
+    try {
+      console.log("🔍 Scanat:", targetName);
+      const postersRes = await axios.get(`${SERVER_URL}/war/posters`);
+
+      // Extragem doar numărul (ex: din "afis1" luăm "1")
+      const index = targetName.replace("afis", "");
+
+      // Căutăm în JSON-ul colegului (ex: unde nume este "Afiș 1")
+      const dbPoster = postersRes.data.find((p: any) => p.nume.includes(index));
+
+      if (dbPoster) {
+        console.log("✅ Match DB:", dbPoster.nume, "ID:", dbPoster.id);
+        setActivePosterDbId(dbPoster.id);
+        setActiveTarget(targetName);
+
+        // Luăm desenele salvate anterior
+        const drawingsRes = await axios.get(
+          `${SERVER_URL}/war/poster/${dbPoster.id}/drawings`,
+        );
+
+        // Parsăm datele din Prisma (points e obiectul nostru de linie)
+        const paths = drawingsRes.data.map((d: any) => {
+          return typeof d.points === "string" ? JSON.parse(d.points) : d.points;
+        });
+
+        setDrawingsByTarget((prev) => ({ ...prev, [targetName]: paths }));
+      }
+    } catch (e) {
+      console.error("🚨 Eroare legătură backend:", e);
+    }
+  };
+
+  const handleCloseTarget = () => {
+    lastClosedTarget.current = { id: activeTarget || "", time: Date.now() };
+    setActiveTarget(null);
+    setActivePosterDbId(null);
+  };
+
+  // --- PAN RESPONDER (DESEN) ---
   const colorRef = useRef(selectedColor);
   const sizeRef = useRef(brushSize);
-
   useEffect(() => {
     colorRef.current = selectedColor;
   }, [selectedColor]);
@@ -266,72 +227,55 @@ export const ScanScreen = () => {
         },
         onPanResponderRelease: () => {
           setCurrentPath((finalPath) => {
-            if (finalPath && activeTarget) {
+            if (finalPath && activeTarget && activePosterDbId) {
               const newLine = {
                 d: finalPath,
                 stroke: colorRef.current,
                 strokeWidth: sizeRef.current,
               };
 
+              // 1. Salvare locală instantă
               setDrawingsByTarget((prev) => ({
                 ...prev,
                 [activeTarget]: [...(prev[activeTarget] || []), newLine],
               }));
 
-              if (socketRef.current) {
-                socketRef.current.emit("draw_line", {
-                  targetId: activeTarget,
-                  line: newLine,
-                });
-              }
+              // 2. Trimitere prin SOCKET
+              socketRef.current.emit("draw_line", {
+                posterId: activePosterDbId,
+                line: newLine,
+              });
+
+              // 3. Salvare în DB prin REST (POST /war/save)
+              axios
+                .post(`${SERVER_URL}/war/save`, {
+                  points: newLine,
+                  area: 10,
+                  userId: 1, // Înlocuiește cu id-ul din login
+                  teamId: 1, // Înlocuiește cu echipa userului
+                  posterId: activePosterDbId,
+                })
+                .catch((e) => console.log("Eroare persistenta:", e.message));
             }
             return "";
           });
         },
       }),
-    [activeTarget],
+    [activeTarget, activePosterDbId],
   );
 
   const handleNuke = () => {
     if (!activeTarget) return;
     setDrawingsByTarget((prev) => ({ ...prev, [activeTarget]: [] }));
-    if (socketRef.current) {
-      socketRef.current.emit("clear_canvas", activeTarget);
-    }
   };
 
   const handleUndo = () => {
     if (!activeTarget) return;
     setDrawingsByTarget((prev) => {
-      const currentTargetDrawings = [...(prev[activeTarget] || [])];
-      currentTargetDrawings.pop();
-      return { ...prev, [activeTarget]: currentTargetDrawings };
+      const current = [...(prev[activeTarget] || [])];
+      current.pop();
+      return { ...prev, [activeTarget]: current };
     });
-  };
-
-  // Funcție Inteligentă de Setare Target (cu Cooldown)
-  const handleSetLockedTarget = (targetName: string) => {
-    // Dacă e deja deschis, nu facem nimic
-    if (activeTarget === targetName) return;
-
-    // Dacă l-am închis în ultimele 3 secunde, îl ignorăm (ne dă timp să luăm camera de pe el)
-    const now = Date.now();
-    if (
-      lastClosedTarget.current.id === targetName &&
-      now - lastClosedTarget.current.time < 3000
-    ) {
-      return;
-    }
-
-    // Deschidem afișul
-    setActiveTarget(targetName);
-  };
-
-  // Funcție de Închidere
-  const handleCloseTarget = () => {
-    // Salvăm momentul închiderii ca să declanșăm cooldown-ul
-    lastClosedTarget.current = { id: activeTarget || "", time: Date.now() };
-    setActiveTarget(null);
   };
 
   const livePreviewColor = `rgb(${r}, ${g}, ${b})`;
@@ -339,17 +283,13 @@ export const ScanScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* 1. MOTORUL AR */}
       <ViroARSceneNavigator
         autofocus={true}
-        initialScene={{ scene: MarkerSceneAR }}
+        initialScene={{ scene: MarkerSceneAR as any }}
         style={StyleSheet.absoluteFill}
-        viroAppProps={{
-          setLockedTarget: handleSetLockedTarget,
-        }}
+        viroAppProps={{ setLockedTarget: handleSetLockedTarget }}
       />
 
-      {/* 2. CANVAS-UL DE DESEN */}
       {activeTarget ? (
         <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
           <TouchableOpacity
@@ -360,7 +300,6 @@ export const ScanScreen = () => {
               [ INCHIDE {activeTarget.toUpperCase()} ]
             </Text>
           </TouchableOpacity>
-
           <Svg style={StyleSheet.absoluteFill}>
             {activePaths.map((path, index) => (
               <Path
@@ -391,60 +330,38 @@ export const ScanScreen = () => {
         </View>
       )}
 
-      {/* 3. MODALUL DE CULORI */}
-      <Modal
-        visible={isColorPickerVisible}
-        transparent={true}
-        animationType="fade"
-      >
+      {/* --- UI TOOLS (Color Picker) --- */}
+      <Modal visible={isColorPickerVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.colorPickerContainer}>
-            <Text style={styles.modalTitle}>OVERRIDE COLOR</Text>
+            <Text style={styles.modalTitle}>COLOR OVERRIDE</Text>
             <View
               style={[
                 styles.colorPreviewBox,
                 { backgroundColor: livePreviewColor },
               ]}
             />
-            <View style={styles.rgbRow}>
-              <Text style={[styles.rgbLabel, { color: "#FF3333" }]}>R</Text>
-              <Slider
-                style={styles.rgbSlider}
-                minimumValue={0}
-                maximumValue={255}
-                step={1}
-                value={r}
-                onValueChange={setR}
-                minimumTrackTintColor="#FF3333"
-                thumbTintColor="#FFF"
-              />
-            </View>
-            <View style={styles.rgbRow}>
-              <Text style={[styles.rgbLabel, { color: "#33FF33" }]}>G</Text>
-              <Slider
-                style={styles.rgbSlider}
-                minimumValue={0}
-                maximumValue={255}
-                step={1}
-                value={g}
-                onValueChange={setG}
-                minimumTrackTintColor="#3a33ff"
-                thumbTintColor="#FFF"
-              />
-            </View>
-            <View style={styles.rgbRow}>
-              <Text style={[styles.rgbLabel, { color: "#3333FF" }]}>B</Text>
-              <Slider
-                style={styles.rgbSlider}
-                minimumValue={0}
-                maximumValue={255}
-                step={1}
-                value={b}
-                onValueChange={setB}
-                minimumTrackTintColor="#3333FF"
-                thumbTintColor="#FFF"
-              />
-            </View>
+            {[
+              { l: "R", v: r, s: setR, c: "#F33" },
+              { l: "G", v: g, s: setG, c: "#3F3" },
+              { l: "B", v: b, s: setB, c: "#33F" },
+            ].map((item) => (
+              <View key={item.l} style={styles.rgbRow}>
+                <Text style={[styles.rgbLabel, { color: item.c }]}>
+                  {item.l}
+                </Text>
+                <Slider
+                  style={styles.rgbSlider}
+                  minimumValue={0}
+                  maximumValue={255}
+                  step={1}
+                  value={item.v}
+                  onValueChange={item.s}
+                  minimumTrackTintColor={item.c}
+                  thumbTintColor="#FFF"
+                />
+              </View>
+            ))}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.closeModalBtn}
@@ -466,7 +383,6 @@ export const ScanScreen = () => {
         </View>
       </Modal>
 
-      {/* 4. INTERFAȚA DE JOS */}
       {activeTarget && (
         <View style={styles.bottomWrapper} pointerEvents="box-none">
           <TouchableOpacity
@@ -474,7 +390,7 @@ export const ScanScreen = () => {
             onPress={() => setIsMenuVisible(!isMenuVisible)}
           >
             <Text style={styles.toggleMenuText}>
-              {isMenuVisible ? "▼  ASCUNDE  ▼" : "▲  MENIU  ▲"}
+              {isMenuVisible ? "▼ ASCUNDE ▼" : "▲ MENIU ▲"}
             </Text>
           </TouchableOpacity>
           {isMenuVisible && (
@@ -490,11 +406,11 @@ export const ScanScreen = () => {
                       { backgroundColor: selectedColor },
                     ]}
                   />
-                  <Text style={styles.colorSelectorText}>COLOR</Text>
+                  <Text style={styles.colorSelectorText}>CULOARE</Text>
                 </TouchableOpacity>
                 <View style={styles.sliderContainer}>
                   <Text style={styles.toolLabel}>
-                    SIZE: {Math.round(brushSize)}
+                    GROSIME: {Math.round(brushSize)}
                   </Text>
                   <Slider
                     style={{ flex: 1, height: 40 }}
@@ -503,7 +419,6 @@ export const ScanScreen = () => {
                     value={brushSize}
                     onValueChange={setBrushSize}
                     minimumTrackTintColor={selectedColor}
-                    maximumTrackTintColor="rgba(255,255,255,0.2)"
                     thumbTintColor="#FFF"
                   />
                 </View>
@@ -513,7 +428,7 @@ export const ScanScreen = () => {
                   <Text style={styles.actionBtnText}>UNDO</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.nukeBtn} onPress={handleNuke}>
-                  <Text style={styles.nukeBtnText}>[ STERGE TOT ]</Text>
+                  <Text style={styles.nukeBtnText}>[ STERGE ]</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -526,8 +441,6 @@ export const ScanScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
-
-  // Stilul textului 3D din AR
   arTextHologram: {
     fontFamily: "monospace",
     fontSize: 20,
@@ -536,7 +449,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "bold",
   },
-
   scanningOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
@@ -555,8 +467,7 @@ const styles = StyleSheet.create({
     top: 50,
     alignSelf: "center",
     backgroundColor: "rgba(255,0,0,0.8)",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    padding: 12,
     borderRadius: 8,
     zIndex: 10,
     borderWidth: 1,
@@ -566,7 +477,6 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontWeight: "bold",
     fontFamily: "monospace",
-    fontSize: 14,
   },
   bottomWrapper: {
     position: "absolute",
@@ -581,27 +491,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     borderTopLeftRadius: 15,
     borderTopRightRadius: 15,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    marginBottom: -1,
   },
   toggleMenuText: {
     color: "#0040ff",
     fontFamily: "monospace",
     fontWeight: "bold",
     fontSize: 12,
-    letterSpacing: 1,
   },
   toolsOverlay: {
     width: "100%",
     backgroundColor: "rgba(10, 10, 10, 0.9)",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.1)",
-    paddingTop: 15,
-    paddingBottom: 25,
-    paddingHorizontal: 20,
+    padding: 20,
     borderTopLeftRadius: 15,
     borderTopRightRadius: 15,
   },
@@ -616,11 +516,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.05)",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    padding: 10,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
   },
   currentColorIndicator: {
     width: 20,
@@ -628,31 +525,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
+    borderColor: "#FFF",
   },
-  colorSelectorText: {
-    color: "#FFF",
-    fontFamily: "monospace",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
+  colorSelectorText: { color: "#FFF", fontFamily: "monospace", fontSize: 14 },
   sliderContainer: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.05)",
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    padding: 5,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
   },
   toolLabel: {
     color: "#FFF",
     fontFamily: "monospace",
-    fontWeight: "bold",
-    width: 70,
-    fontSize: 12,
+    width: 85,
+    fontSize: 11,
   },
   actionRow: { flexDirection: "row", justifyContent: "space-between", gap: 15 },
   actionBtn: {
@@ -660,16 +548,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#555",
     alignItems: "center",
   },
-  actionBtnText: {
-    color: "#FFF",
-    fontFamily: "monospace",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+  actionBtnText: { color: "#FFF", fontFamily: "monospace", fontSize: 16 },
   nukeBtn: {
     flex: 2,
     paddingVertical: 14,
@@ -684,7 +565,6 @@ const styles = StyleSheet.create({
     fontFamily: "monospace",
     fontWeight: "900",
     fontSize: 16,
-    letterSpacing: 2,
   },
   modalOverlay: {
     flex: 1,
@@ -697,17 +577,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#111",
     borderRadius: 20,
     padding: 25,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#333",
   },
   modalTitle: {
     color: "#FFF",
     fontSize: 18,
     fontFamily: "monospace",
-    fontWeight: "bold",
     marginBottom: 20,
-    letterSpacing: 2,
   },
   colorPreviewBox: {
     width: "100%",
@@ -740,29 +618,20 @@ const styles = StyleSheet.create({
   closeModalBtn: {
     flex: 1,
     paddingVertical: 12,
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#555",
     borderRadius: 8,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#555",
   },
-  closeModalText: {
-    color: "#FFF",
-    fontFamily: "monospace",
-    fontWeight: "bold",
-  },
+  closeModalText: { color: "#FFF", fontFamily: "monospace" },
   applyColorBtn: {
     flex: 1,
     paddingVertical: 12,
     backgroundColor: "rgba(0, 255, 65, 0.2)",
-    borderWidth: 1,
-    borderColor: "#0051ff",
     borderRadius: 8,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#00F",
   },
-  applyColorText: {
-    color: "#2600ff",
-    fontFamily: "monospace",
-    fontWeight: "900",
-  },
+  applyColorText: { color: "#00F", fontFamily: "monospace", fontWeight: "900" },
 });

@@ -1,47 +1,58 @@
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  Dimensions,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as SecureStore from "expo-secure-store";
+import { useSetAtom } from "jotai"; // ✅ Adaugă asta
+import { tokenAtom } from "../../store"; // ✅ Verifică dacă path-ul e corect către store.ts
 
-type RootStackParamList = {
-  SettingsScreen: undefined;
-  ProfileScreen: undefined;
-  SecurityScreen: undefined;
-  NotificationsScreen: undefined;
-  LoginScreen: undefined;
-};
+export const SettingsScreen = ({ navigation }: any) => {
+  // Aici e magia: funcția care schimbă starea globală
+  const setToken = useSetAtom(tokenAtom);
 
-type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, "SettingsScreen">;
-};
+  const handleLogout = async () => {
+    Alert.alert(
+      "TERMINATE SESSION",
+      "Sigur vrei să te deconectezi din rețeaua Surface Siege?",
+      [
+        { text: "ABORT", style: "cancel" },
+        {
+          text: "CONFIRM",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // 1. Ștergem din memoria telefonului
+              await SecureStore.deleteItemAsync("userToken");
 
-const { width } = Dimensions.get("window");
+              // 2. GOLIM ATOMUL JOTAI (Asta te va scoate instant la Login)
+              // De îndată ce pui null aici, App.tsx va schimba automat
+              // grupul de ecrane de la Main.Group (App) la Main.Group (Auth)
+              setToken(null);
 
-export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
+              console.log("✅ Session terminated globally.");
+            } catch (error) {
+              console.error("Logout error:", error);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <LinearGradient
-      // Gradient subtil de la un Navy Blue foarte profund spre Black
       colors={["#0A1128", "#030613", "#000000"]}
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
-        {/* HEADER */}
         <View style={styles.header}>
-          <Text style={styles.title}>SURFACE_SIEGE </Text>
+          <Text style={styles.title}>SURFACE_SIEGE</Text>
           <View style={styles.badgeContainer}>
             <View style={styles.statusDot} />
             <Text style={styles.subtitle}>SYSTEM PREFERENCES</Text>
           </View>
         </View>
 
-        {/* MENIU PRINCIPAL */}
         <View style={styles.menuContainer}>
           <TouchableOpacity
             style={styles.card}
@@ -67,31 +78,16 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.chevron}>→</Text>
             </View>
             <Text style={styles.cardDesc}>
-              Protocoale de criptare, parole și vizibilitate cont.
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate("NotificationsScreen")}
-          >
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>System Alerts</Text>
-              <Text style={styles.chevron}>→</Text>
-            </View>
-            <Text style={styles.cardDesc}>
-              Configurează ping-urile când apare un canvas nou.
+              Protocoale de criptare și parole.
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* FOOTER / LOGOUT */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.logOutBtn}
             activeOpacity={0.8}
-            onPress={() => navigation.navigate("LoginScreen")}
+            onPress={handleLogout}
           >
             <Text style={styles.logOutText}>Disconnect</Text>
           </TouchableOpacity>
@@ -103,22 +99,9 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 20,
-  },
-
-  // -- HEADER --
-  header: {
-    marginTop: 20,
-    marginBottom: 40,
-  },
+  container: { flex: 1 },
+  safeArea: { flex: 1, paddingHorizontal: 24 },
+  header: { marginTop: 40, marginBottom: 40 },
   title: {
     fontSize: 32,
     fontWeight: "900",
@@ -129,7 +112,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 8,
-    backgroundColor: "rgba(59, 130, 246, 0.15)", // Fundal albastru translucid
+    backgroundColor: "rgba(59, 130, 246, 0.15)",
     alignSelf: "flex-start",
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -141,7 +124,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#3B82F6", // Electric Blue
+    backgroundColor: "#3B82F6",
     marginRight: 8,
     shadowColor: "#3B82F6",
     shadowOffset: { width: 0, height: 0 },
@@ -149,27 +132,18 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   subtitle: {
-    color: "#60A5FA", // Light Blue
+    color: "#60A5FA",
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 1,
   },
-
-  // -- MENIU (CARDS) --
-  menuContainer: {
-    flex: 1,
-    gap: 16,
-  },
+  menuContainer: { flex: 1, gap: 16 },
   card: {
-    backgroundColor: "rgba(10, 15, 36, 0.6)", // Navy transparent
+    backgroundColor: "rgba(10, 15, 36, 0.6)",
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: "rgba(59, 130, 246, 0.2)", // Contur subtil albastru
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    borderColor: "rgba(59, 130, 246, 0.15)",
   },
   cardHeader: {
     flexDirection: "row",
@@ -177,48 +151,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
-  cardTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-  chevron: {
-    color: "#3B82F6",
-    fontSize: 20,
-    fontWeight: "300",
-  },
-  cardDesc: {
-    color: "rgba(255, 255, 255, 0.5)",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-
-  // -- FOOTER --
-  footer: {
-    alignItems: "center",
-    marginBottom: 10,
-  },
+  cardTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "700" },
+  chevron: { color: "#3B82F6", fontSize: 20 },
+  cardDesc: { color: "rgba(255, 255, 255, 0.4)", fontSize: 13, lineHeight: 18 },
+  footer: { alignItems: "center", paddingBottom: 20 },
   logOutBtn: {
     width: "100%",
-    backgroundColor: "rgba(225, 29, 72, 0.1)", // Roșu/Crimson transparent
+    backgroundColor: "rgba(225, 29, 72, 0.08)",
     borderRadius: 16,
     paddingVertical: 18,
     borderWidth: 1,
-    borderColor: "rgba(225, 29, 72, 0.3)",
+    borderColor: "rgba(225, 29, 72, 0.25)",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  logOutText: {
-    color: "#F43F5E",
-    fontSize: 16,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
+  logOutText: { color: "#F43F5E", fontSize: 16, fontWeight: "800" },
   versionText: {
-    color: "rgba(255, 255, 255, 0.2)",
+    color: "rgba(255, 255, 255, 0.15)",
     fontSize: 10,
-    fontWeight: "600",
     letterSpacing: 2,
   },
 });
