@@ -30,7 +30,7 @@ const Tabs = createBottomTabNavigator();
 
 const AuthStack = () => {
   return (
-    <Auth.Navigator screenOptions={{ headerShown: false }}>
+    <Auth.Navigator>
       <Auth.Screen name="LandingScreen" component={LandingScreen} />
       <Auth.Screen name="RegisterScreen" component={RegisterScreen} />
       <Auth.Screen name="LoginScreen" component={LoginScreen} />
