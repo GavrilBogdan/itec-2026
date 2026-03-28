@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, Dimensions, Platform } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 // 1. Am importat hook-ul de navigare
-import { useNavigation } from "@react-navigation/native"; 
+import { useNavigation } from "@react-navigation/native";
 import { KButton } from "../../button/KButton";
 
 interface PosterLocation {
@@ -11,7 +11,7 @@ interface PosterLocation {
   description: string;
   latitude: number;
   longitude: number;
-  status: "active" | "damaged"; 
+  status: "active" | "damaged";
 }
 
 const MOCK_POSTERS: PosterLocation[] = [
@@ -35,7 +35,7 @@ const MOCK_POSTERS: PosterLocation[] = [
     id: "3",
     title: "Afiș Complex Studențesc",
     description: "Strada Daliei, Căminul C11. Stare excelentă.",
-    latitude: 45.749730,
+    latitude: 45.74973,
     longitude: 21.2426,
     status: "active",
   },
@@ -49,16 +49,18 @@ const INITIAL_REGION = {
 };
 
 export const MapScreen = () => {
-  const [selectedPoster, setSelectedPoster] = useState<PosterLocation | null>(null);
-  
+  const [selectedPoster, setSelectedPoster] = useState<PosterLocation | null>(
+    null,
+  );
+
   // 2. Am inițializat navigatorul
-  const navigation = useNavigation<any>(); 
+  const navigation = useNavigation<any>();
 
   const handleScanPress = () => {
     console.log("Navighează spre scanare pentru:", selectedPoster?.title);
-    
+
     // 3. AICI E MAGIA: Te trimite automat pe tab-ul de Scanare!
-    navigation.navigate("ScanScreen"); 
+    navigation.navigate("ScanScreen");
   };
 
   return (
@@ -67,16 +69,19 @@ export const MapScreen = () => {
         style={styles.map}
         provider={PROVIDER_DEFAULT}
         initialRegion={INITIAL_REGION}
-        showsUserLocation={true} 
-        onPress={() => setSelectedPoster(null)} 
+        showsUserLocation={true}
+        onPress={() => setSelectedPoster(null)}
       >
         {MOCK_POSTERS.map((poster) => (
           <Marker
             key={poster.id}
-            coordinate={{ latitude: poster.latitude, longitude: poster.longitude }}
-            pinColor={poster.status === "active" ? "#10B981" : "#EF4444"} 
+            coordinate={{
+              latitude: poster.latitude,
+              longitude: poster.longitude,
+            }}
+            pinColor={poster.status === "active" ? "#10B981" : "#EF4444"}
             onPress={(e) => {
-              e.stopPropagation(); 
+              e.stopPropagation();
               setSelectedPoster(poster);
             }}
           />
@@ -92,30 +97,42 @@ export const MapScreen = () => {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{selectedPoster.title}</Text>
-              <View 
+              <View
                 style={[
-                  styles.statusBadge, 
-                  { backgroundColor: selectedPoster.status === "active" ? "#D1FAE5" : "#FEE2E2" }
+                  styles.statusBadge,
+                  {
+                    backgroundColor:
+                      selectedPoster.status === "active"
+                        ? "#D1FAE5"
+                        : "#FEE2E2",
+                  },
                 ]}
               >
-                <Text 
+                <Text
                   style={[
                     styles.statusText,
-                    { color: selectedPoster.status === "active" ? "#059669" : "#DC2626" }
+                    {
+                      color:
+                        selectedPoster.status === "active"
+                          ? "#059669"
+                          : "#DC2626",
+                    },
                   ]}
                 >
                   {selectedPoster.status === "active" ? "Activ" : "Deteriorat"}
                 </Text>
               </View>
             </View>
-            
-            <Text style={styles.cardDescription}>{selectedPoster.description}</Text>
-            
+
+            <Text style={styles.cardDescription}>
+              {selectedPoster.description}
+            </Text>
+
             <View style={styles.buttonWrapper}>
-              <KButton 
-                title="Scanează Locația" 
-                onPress={handleScanPress} 
-                variant="glow" 
+              <KButton
+                title="Scanează Locația"
+                onPress={handleScanPress}
+                variant="glow"
               />
             </View>
           </View>
@@ -136,7 +153,7 @@ const styles = StyleSheet.create({
   },
   header: {
     position: "absolute",
-    top: 50, 
+    top: 50,
     left: 20,
     right: 20,
     backgroundColor: "rgba(255, 255, 255, 0.95)",

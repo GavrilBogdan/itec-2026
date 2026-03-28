@@ -29,7 +29,7 @@ export const ScanScreen = () => {
 
   // Stare Modal & Meniu vizibil
   const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
-  const [isMenuVisible, setIsMenuVisible] = useState(true); // <-- Starea nouă pentru meniu
+  const [isMenuVisible, setIsMenuVisible] = useState(true);
 
   // Stări pentru RGB Picker Custom
   const [r, setR] = useState(0);
@@ -45,22 +45,30 @@ export const ScanScreen = () => {
     }
   }, [permission, requestPermission]);
 
+  // Acest useEffect gestionează conexiunea WebSocket
+  useEffect(() => {
     socketRef.current = io(SERVER_URL);
 
     socketRef.current.on("connect", () =>
       console.log("✅ SOCKET CONNECTED", socketRef.current.id),
     );
+
     socketRef.current.on("init_canvas", (existingPaths: any) =>
       setPaths(existingPaths),
     );
+
     socketRef.current.on("new_line", (newLine: any) =>
       setPaths((prev) => [...prev, newLine]),
     );
 
     socketRef.current.on("canvas_cleared", () => setPaths([]));
 
-    return () => socketRef.current.disconnect();
-  }, [permission]);
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, []); // Adăugat array gol pentru a rula doar o dată la montarea componentei
 
   const colorRef = useRef(selectedColor);
   const sizeRef = useRef(brushSize);
@@ -68,6 +76,7 @@ export const ScanScreen = () => {
   useEffect(() => {
     colorRef.current = selectedColor;
   }, [selectedColor]);
+
   useEffect(() => {
     sizeRef.current = brushSize;
   }, [brushSize]);
@@ -93,7 +102,9 @@ export const ScanScreen = () => {
                 strokeWidth: sizeRef.current,
               };
               setPaths((prev) => [...prev, newLine]);
-              socketRef.current.emit("draw_line", newLine);
+              if (socketRef.current) {
+                socketRef.current.emit("draw_line", newLine);
+              }
             }
             return "";
           });
@@ -104,7 +115,9 @@ export const ScanScreen = () => {
 
   const handleNuke = () => {
     setPaths([]);
-    socketRef.current.emit("clear_canvas");
+    if (socketRef.current) {
+      socketRef.current.emit("clear_canvas");
+    }
   };
 
   const handleUndo = () => {
@@ -303,7 +316,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
-
   center: {
     flex: 1,
     justifyContent: "center",
@@ -311,24 +323,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#111",
     padding: 24,
   },
-  infoText: {
-    color: "#fff",
-    fontSize: 16,
-    marginBottom: 12,
-    textAlign: "center",
+  glitchText: {
+    color: "#FF003C",
+    fontSize: 20,
+    fontWeight: "900",
+    marginBottom: 20,
   },
   btnText: { color: "#FFF", fontWeight: "bold" },
-
-  // Wrapper-ul de jos care ține și butonul și meniul
   bottomWrapper: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    alignItems: "center", // Centrează tab-ul de sus
+    alignItems: "center",
   },
-
-  // Tab-ul de Ascunde/Afișează
   toggleMenuBtn: {
     backgroundColor: "rgba(10, 10, 10, 0.85)",
     paddingVertical: 8,
@@ -339,7 +347,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
-    marginBottom: -1, // Se suprapune puțin pentru a părea o piesă continuă
+    marginBottom: -1,
   },
   toggleMenuText: {
     color: "#0040ff",
@@ -348,9 +356,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 1,
   },
-
   toolsOverlay: {
-    width: "100%", // Revine la lățimea completă
+    width: "100%",
     backgroundColor: "rgba(10, 10, 10, 0.85)",
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.1)",
@@ -360,7 +367,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 15,
     borderTopRightRadius: 15,
   },
-
   topToolsRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -368,7 +374,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     gap: 15,
   },
-
   colorSelectorBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -393,7 +398,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 14,
   },
-
   sliderContainer: {
     flex: 1,
     flexDirection: "row",
@@ -405,7 +409,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.2)",
   },
-
   toolLabel: {
     color: "#FFF",
     fontFamily: "monospace",
@@ -413,7 +416,6 @@ const styles = StyleSheet.create({
     width: 70,
     fontSize: 12,
   },
-
   actionRow: { flexDirection: "row", justifyContent: "space-between", gap: 15 },
   actionBtn: {
     flex: 1,
@@ -446,7 +448,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     letterSpacing: 2,
   },
-
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
