@@ -27,9 +27,10 @@ export const ScanScreen = () => {
   const [selectedColor, setSelectedColor] = useState("rgb(0, 255, 65)");
   const [brushSize, setBrushSize] = useState(5);
 
-  // Stare Modal & Meniu vizibil
+  // Stare Modal, Meniu & Lanterna
   const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(true);
+  const [isTorchOn, setIsTorchOn] = useState(false); // <-- Starea pentru lanternă
 
   // Stări pentru RGB Picker Custom
   const [r, setR] = useState(0);
@@ -45,7 +46,7 @@ export const ScanScreen = () => {
     }
   }, [permission, requestPermission]);
 
-  // Acest useEffect gestionează conexiunea WebSocket
+  // Conexiunea WebSocket
   useEffect(() => {
     socketRef.current = io(SERVER_URL);
 
@@ -68,7 +69,7 @@ export const ScanScreen = () => {
         socketRef.current.disconnect();
       }
     };
-  }, []); // Adăugat array gol pentru a rula doar o dată la montarea componentei
+  }, []);
 
   const colorRef = useRef(selectedColor);
   const sizeRef = useRef(brushSize);
@@ -143,7 +144,13 @@ export const ScanScreen = () => {
 
   return (
     <View style={styles.container}>
-      <CameraView style={StyleSheet.absoluteFill} facing="back" />
+      {/* Proprietatea `enableTorch` controlează flash-ul.
+       */}
+      <CameraView
+        style={StyleSheet.absoluteFill}
+        facing="back"
+        enableTorch={isTorchOn}
+      />
 
       {/* CANVAS */}
       <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
@@ -171,6 +178,18 @@ export const ScanScreen = () => {
           ) : null}
         </Svg>
       </View>
+
+      {/* BUTON LANTERNĂ (Dreapta Sus) */}
+      <TouchableOpacity
+        style={[styles.torchBtn, isTorchOn && styles.torchBtnActive]}
+        onPress={() => setIsTorchOn(!isTorchOn)}
+      >
+        <Text
+          style={[styles.torchBtnText, isTorchOn && styles.torchBtnTextActive]}
+        >
+          {isTorchOn ? "💡 FLASH: ON" : "🔦 FLASH: OFF"}
+        </Text>
+      </TouchableOpacity>
 
       {/* MODAL RGB */}
       <Modal
@@ -261,7 +280,7 @@ export const ScanScreen = () => {
           </Text>
         </TouchableOpacity>
 
-        {/* Conținutul meniului care dispare/apare */}
+        {/* Conținutul meniului */}
         {isMenuVisible && (
           <View style={styles.toolsOverlay}>
             <View style={styles.topToolsRow}>
@@ -330,6 +349,39 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   btnText: { color: "#FFF", fontWeight: "bold" },
+
+  // STILURI NOI PENTRU LANTERNĂ
+  torchBtn: {
+    position: "absolute",
+    top: 50, // O lasă sub status bar (bateria, ceasul telefonului)
+    right: 20,
+    backgroundColor: "rgba(10, 10, 10, 0.7)",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    zIndex: 10, // Foarte important ca să fie deasupra canvas-ului și să poată fi apăsat
+  },
+  torchBtnActive: {
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderColor: "#FFF",
+    shadowColor: "#FFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  torchBtnText: {
+    color: "#FFF",
+    fontFamily: "monospace",
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+  torchBtnTextActive: {
+    color: "#000",
+  },
+
   bottomWrapper: {
     position: "absolute",
     bottom: 0,
