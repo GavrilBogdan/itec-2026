@@ -1,111 +1,67 @@
-import React, { useEffect, useRef } from "react";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import React, { useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   View,
   Text,
-  StyleSheet,
-  Animated,
-  Easing,
+  TextInput,
   TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { useAuth } from "../../hooks/use-auth.hook";
 
-export const SettingsScreen = () => {
-  const { logout } = useAuth();
+type RootStackParamList = {
+  SettingsScreen: undefined;
+  ProfileScreen: undefined;
+  SecurityScreen: undefined;
+  NotificationsScreen: undefined;
+  LoginScreen: undefined;
+};
 
-  const floatA = useRef(new Animated.Value(0)).current;
-  const floatB = useRef(new Animated.Value(0)).current;
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList, "SettingsScreen">;
+};
 
-  useEffect(() => {
-    const loopA = Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatA, {
-          toValue: 1,
-          duration: 4500,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatA, {
-          toValue: 0,
-          duration: 4500,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    const loopB = Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatB, {
-          toValue: 1,
-          duration: 5200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatB, {
-          toValue: 0,
-          duration: 5200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    loopA.start();
-    loopB.start();
-
-    return () => {
-      loopA.stop();
-      loopB.stop();
-    };
-  }, [floatA, floatB]);
-
-  const orbATranslateY = floatA.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -25],
-  });
-
-  const orbBTranslateY = floatB.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 20],
-  });
-
+export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <LinearGradient
-      colors={["#021129", "#062349", "#0A2E5C"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+      colors={["#1e3a8a", "#1f0590", "#070051"]}
       style={styles.container}
     >
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.orb,
-          styles.orbTop,
-          {
-            transform: [{ translateY: orbATranslateY }],
-          },
-        ]}
-      />
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.orb,
-          styles.orbBottom,
-          {
-            transform: [{ translateY: orbBTranslateY }],
-          },
-        ]}
-      />
+      <Text style={styles.title}>Setări ⚙️</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>Setări</Text>
-        <Text style={styles.subtitle}>Gestionează contul și preferințele tale</Text>
+      <View style={styles.menuContainer}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate("ProfileScreen")}
+        >
+          <Text style={styles.menuText}>Profil 📝</Text>
+        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-          <Text style={styles.logoutText}>Log Out</Text>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate("SecurityScreen")}
+        >
+          <Text style={styles.menuText}>Securitate 🔒</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate("NotificationsScreen")}
+        >
+          <Text style={styles.menuText}>Notificări 🔔</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity onPress={() => navigation.navigate("LoginScreen")}>
+        <LinearGradient
+          colors={["#f43f5e", "#f97316"]}
+          style={styles.logOutBtn}
+        >
+          <Text style={styles.logOutText}>Log out</Text>
+        </LinearGradient>
+      </TouchableOpacity>
     </LinearGradient>
   );
 };
@@ -113,63 +69,62 @@ export const SettingsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "space-evenly",
     alignItems: "center",
-    paddingHorizontal: 24,
-  },
-  orb: {
-    position: "absolute",
-    borderRadius: 999,
-    backgroundColor: "rgba(88, 155, 255, 0.18)",
-  },
-  orbTop: {
-    width: 220,
-    height: 220,
-    top: 70,
-    left: -40,
-  },
-  orbBottom: {
-    width: 260,
-    height: 260,
-    bottom: 40,
-    right: -70,
-    backgroundColor: "rgba(117, 187, 255, 0.15)",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 420,
-    borderRadius: 22,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(6, 22, 45, 0.7)",
+    paddingVertical: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 42,
     fontWeight: "bold",
-    color: "#EAF2FF",
-    textAlign: "center",
-    marginBottom: 10,
-    letterSpacing: 0.4,
+    color: "#e0e7ff",
+    textShadowColor: "#8b5cf6",
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 5,
   },
-  subtitle: {
-    fontSize: 15,
-    color: "#B6CBEC",
-    textAlign: "center",
-    marginBottom: 26,
-  },
-  logoutButton: {
-    backgroundColor: "#1E4F8E",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#5B8ED0",
-    paddingVertical: 14,
+  menuContainer: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 30,
+    padding: 25,
+    shadowColor: "#8b5cf6",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    gap: 15,
     alignItems: "center",
   },
-  logoutText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 0.5,
+  menuItem: {
+    backgroundColor: "rgba(142, 148, 255, 0.2)",
+    borderWidth: 1,
+    borderColor: "#8b5cf6",
+    borderRadius: 20,
+    paddingHorizontal: 30,
+    paddingVertical: 20,
+    minWidth: 250,
+    textAlign: "center",
+    shadowColor: "#8b5cf6",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  menuText: {
+    color: "#f0f0ff",
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  logOutBtn: {
+    borderRadius: 25,
+    paddingVertical: 12,
+    paddingHorizontal: 35,
+    shadowColor: "#f97316",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+  },
+  logOutText: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
   },
 });

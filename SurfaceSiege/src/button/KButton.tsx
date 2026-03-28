@@ -43,12 +43,10 @@ const styles = StyleSheet.create({
     }),
   },
   pressedState: {
-    
     transform: [{ scale: 0.96 }],
     opacity: 0.9,
   },
   pressedGlow: {
-    
     backgroundColor: "#6366F1",
     shadowColor: "#818CF8",
     shadowOffset: { width: 0, height: 0 },
