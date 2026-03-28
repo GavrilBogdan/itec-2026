@@ -4,6 +4,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 
+// --- IMPORTURI ECRANE ---
 import { LandingScreen } from "./src/screen/auth/landing.screen";
 import { RegisterScreen } from "./src/screen/auth/register.screen";
 import { LoginScreen } from "./src/screen/auth/login.screen";
@@ -11,6 +12,12 @@ import { ActivityScreen } from "./src/screen/app/activity.screen";
 import { ScanScreen } from "./src/screen/app/scan.screen";
 import { MapScreen } from "./src/screen/app/map.screen";
 import { SettingsScreen } from "./src/screen/app/settings.screen";
+
+// Importăm noile ecrane exact cu numele fișierelor tale
+import { ProfileScreen } from "./src/screen/app/profilescreen";
+import { SecurityScreen } from "./src/screen/app/SecurityScreen";
+import { NotificationsScreen } from "./src/screen/app/NotificationsScreen";
+
 import { Provider } from "jotai";
 import { tokenAtom, store } from "./src/store";
 import { useAuth } from "./src/hooks/use-auth.hook";
@@ -93,9 +100,21 @@ const Navigation = () => {
     <NavigationContainer>
       <Main.Navigator screenOptions={{ headerShown: false }}>
         {token === null ? (
-          <Main.Screen name="AuthStack" component={AuthStack} />
+          // Dacă NU ești logat, vezi doar partea de autentificare
+          <Main.Group>
+            <Main.Screen name="AuthStack" component={AuthStack} />
+          </Main.Group>
         ) : (
-          <Main.Screen name="AppTabs" component={AppTabs} />
+          // Dacă EȘTI logat, vezi tab-urile principale ȘI ecranele de setări
+          <Main.Group>
+            <Main.Screen name="AppTabs" component={AppTabs} />
+            <Main.Screen name="ProfileScreen" component={ProfileScreen} />
+            <Main.Screen name="SecurityScreen" component={SecurityScreen} />
+            <Main.Screen
+              name="NotificationsScreen"
+              component={NotificationsScreen}
+            />
+          </Main.Group>
         )}
       </Main.Navigator>
     </NavigationContainer>
