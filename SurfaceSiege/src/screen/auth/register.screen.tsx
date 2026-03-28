@@ -64,14 +64,24 @@ export function RegisterScreen() {
       setPassword("");
       navigation.navigate("LoginScreen");
     } catch (err: unknown) {
-      const responseData = axios.isAxiosError<{ error?: string; message?: string }>(err)
-        ? err.response?.data
+      const axiosError = axios.isAxiosError<{ error?: string; message?: string }>(err)
+        ? err
         : undefined;
-      const errorMessage =
+      const responseData = axiosError?.response?.data;
+      const status = axiosError?.response?.status;
+
+      if (status && status >= 500) {
+        Alert.alert("Eșec", "Eroare de server.");
+        return;
+      }
+
+      const writeErrorMessage =
         responseData?.error ||
         responseData?.message ||
+        (status && status >= 400 && status < 500 ? "Eroare de scris/date." : undefined) ||
         "Nu s-a putut crea contul. Verifică datele sau conexiunea la server.";
-      Alert.alert("Eșec", errorMessage);
+
+      Alert.alert("Eșec", writeErrorMessage);
     } finally {
       setLoading(false);
     }
