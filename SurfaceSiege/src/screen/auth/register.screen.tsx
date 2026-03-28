@@ -71,14 +71,14 @@ export function RegisterScreen() {
       const status = axiosError?.response?.status;
 
       if (status && status >= 500) {
-        Alert.alert("Eșec", "Eroare de server.");
+        Alert.alert("Eșec", "Eroare de server. Încearcă din nou mai târziu.");
         return;
       }
 
       const writeErrorMessage =
         responseData?.error ||
         responseData?.message ||
-        (status && status >= 400 && status < 500 ? "Eroare de scris/date." : undefined) ||
+        (status && status >= 400 && status < 500 ? "Eroare de scris/date. Verifică formularul." : undefined) ||
         "Nu s-a putut crea contul. Verifică datele sau conexiunea la server.";
 
       Alert.alert("Eșec", writeErrorMessage);
