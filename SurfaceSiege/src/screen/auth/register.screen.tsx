@@ -1,26 +1,30 @@
 import React, { useState } from "react";
 import {
-  View,
   Text,
   StyleSheet,
   TextInput,
   Alert,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import axios from "axios";
+import { useNavigation } from "@react-navigation/native";
 
 export function RegisterScreen() {
+  const navigation = useNavigation<any>();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   const validatePassword = (value: string) => value.length >= 2;
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     const cleanName = name.trim();
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
@@ -45,7 +49,51 @@ export function RegisterScreen() {
       return;
     }
 
-    Alert.alert("Succes", "Cont creat (fake) 🔥");
+    setLoading(true);
+
+    try {
+      const BASE_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
+
+      try {
+        await axios.post(`${BASE_URL}/users/register`, {
+          nume: cleanName,
+          email: cleanEmail,
+          parola: cleanPassword,
+        });
+      } catch (primaryError: unknown) {
+        if (
+          !axios.isAxiosError(primaryError) ||
+          !primaryError.response ||
+          primaryError.response.status < 400 ||
+          primaryError.response.status >= 500
+        ) {
+          throw primaryError;
+        }
+
+        await axios.post(`${BASE_URL}/users/register`, {
+          name: cleanName,
+          email: cleanEmail,
+          password: cleanPassword,
+        });
+      }
+
+      Alert.alert("Succes", "Cont creat cu succes!");
+      setName("");
+      setEmail("");
+      setPassword("");
+      navigation.navigate("LandingScreen");
+    } catch (err: unknown) {
+      const responseData = axios.isAxiosError<{ error?: string; message?: string }>(err)
+        ? err.response?.data
+        : undefined;
+      const errorMessage =
+        responseData?.error ||
+        responseData?.message ||
+        "Nu s-a putut crea contul. Verifică datele sau conexiunea la server.";
+      Alert.alert("Eșec", errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -84,12 +132,20 @@ export function RegisterScreen() {
         />
 
         {/* BUTTON */}
-        <TouchableOpacity style={styles.button} onPress={handleRegister}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleRegister}
+          disabled={loading}
+        >
           <LinearGradient
             colors={["#2563eb", "#3b82f6"]}
             style={styles.buttonGradient}
           >
-            <Text style={styles.buttonText}>REGISTER</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>REGISTER</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </BlurView>
