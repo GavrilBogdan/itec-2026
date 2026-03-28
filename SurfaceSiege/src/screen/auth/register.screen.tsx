@@ -52,36 +52,17 @@ export function RegisterScreen() {
     setLoading(true);
 
     try {
-      const BASE_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
-
-      try {
-        await axios.post(`${BASE_URL}/users/register`, {
-          nume: cleanName,
-          email: cleanEmail,
-          parola: cleanPassword,
-        });
-      } catch (primaryError: unknown) {
-        if (
-          !axios.isAxiosError(primaryError) ||
-          !primaryError.response ||
-          primaryError.response.status < 400 ||
-          primaryError.response.status >= 500
-        ) {
-          throw primaryError;
-        }
-
-        await axios.post(`${BASE_URL}/users/register`, {
-          name: cleanName,
-          email: cleanEmail,
-          password: cleanPassword,
-        });
-      }
+      await axios.post("/users/register", {
+        nume: cleanName,
+        email: cleanEmail,
+        parola: cleanPassword,
+      });
 
       Alert.alert("Succes", "Cont creat cu succes!");
       setName("");
       setEmail("");
       setPassword("");
-      navigation.navigate("LandingScreen");
+      navigation.navigate("LoginScreen");
     } catch (err: unknown) {
       const responseData = axios.isAxiosError<{ error?: string; message?: string }>(err)
         ? err.response?.data
