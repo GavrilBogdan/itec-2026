@@ -1,33 +1,75 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  PanResponder,
+  Dimensions,
+} from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import Svg, { Path } from "react-native-svg";
+import io from "socket.io-client";
+
+const { width, height } = Dimensions.get("window");
+
+// ATENȚIE: Înlocuiește cu IP-ul real al calculatorului tău din rețeaua locală (ex: 192.168.1.5)
+const SERVER_URL = "http://192.168.1.100:3000";
 
 export const ScanScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
-  const [facing, setFacing] = useState<"front" | "back">("back");
-  const [isActive, setIsActive] = useState(true);
+  const [paths, setPaths] = useState<any[]>([]);
+  const [currentPath, setCurrentPath] = useState<string>("");
+  const socketRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!permission) return;
-    if (!permission.granted) {
-      requestPermission();
-    }
-  }, [permission, requestPermission]);
+    if (!permission?.granted) requestPermission();
 
-  if (!permission) {
+    // 1. Inițializare WebSocket
+    socketRef.current = io(SERVER_URL);
+
+    socketRef.current.on("init_canvas", (existingPaths: any) => {
+      setPaths(existingPaths);
+    });
+
+    socketRef.current.on("new_line", (newLine: any) => {
+      setPaths((prev) => [...prev, newLine]);
+    });
+
+    return () => {
+      socketRef.current.disconnect();
+    };
+  }, [permission]);
+
+  // 2. Logica de desenare (Gesturi)
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderGrant: (evt) => {
+      const { locationX, locationY } = evt.nativeEvent;
+      setCurrentPath(`M${locationX},${locationY}`);
+    },
+    onPanResponderMove: (evt) => {
+      const { locationX, locationY } = evt.nativeEvent;
+      setCurrentPath((prev) => `${prev} L${locationX},${locationY}`);
+    },
+    onPanResponderRelease: () => {
+      if (currentPath) {
+        const newLine = { d: currentPath, stroke: "#00FF41", strokeWidth: 5 };
+        // Adăugăm linia local
+        setPaths((prev) => [...prev, newLine]);
+        // Trimitem linia la server pentru a fi văzută de toți
+        socketRef.current.emit("draw_line", newLine);
+        setCurrentPath("");
+      }
+    },
+  });
+
+  if (!permission?.granted) {
     return (
       <View style={styles.center}>
-        <Text style={styles.infoText}>Se verifică permisiunea camerei...</Text>
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.infoText}>Nu ai acordat acces la cameră.</Text>
-        <TouchableOpacity style={styles.primaryBtn} onPress={requestPermission}>
-          <Text style={styles.primaryBtnText}>Permite camera</Text>
+        <Text style={styles.glitchText}>VANDALISM REQUIRES CAMERA</Text>
+        <TouchableOpacity style={styles.btn} onPress={requestPermission}>
+          <Text style={styles.btnText}>GRANT ACCESS</Text>
         </TouchableOpacity>
       </View>
     );
@@ -35,125 +77,92 @@ export const ScanScreen = () => {
 
   return (
     <View style={styles.container}>
-      {isActive ? (
-        <CameraView style={StyleSheet.absoluteFill} facing={facing} />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, styles.pausedLayer]}>
-          <Text style={styles.pausedText}>Camera este oprită</Text>
-        </View>
-      )}
+      {/* 3. Feed-ul Camerei */}
+      <CameraView style={StyleSheet.absoluteFill} facing="back" />
 
-      <View style={styles.overlay}>
-        <Text style={styles.title}>Ecranul de Scanare</Text>
+      {/* 4. Canvas-ul de Desen (Peste Cameră) */}
+      <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
+        <Svg style={StyleSheet.absoluteFill}>
+          {paths.map((path, index) => (
+            <Path
+              key={index}
+              d={path.d}
+              stroke={path.stroke}
+              strokeWidth={path.strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+          {/* Linia care se desenează în acest moment */}
+          {currentPath ? (
+            <Path
+              d={currentPath}
+              stroke="#00FF41"
+              strokeWidth={5}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ) : null}
+        </Svg>
+      </View>
 
-        <View style={styles.scanFrame} />
-
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={styles.controlBtn}
-            onPress={() =>
-              setFacing((prev) => (prev === "back" ? "front" : "back"))
-            }
-          >
-            <Text style={styles.controlText}>Flip</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlBtn}
-            onPress={() => setIsActive((prev) => !prev)}
-          >
-            <Text style={styles.controlText}>{isActive ? "Pause" : "Start"}</Text>
-          </TouchableOpacity>
-        </View>
+      {/* 5. Interfața (UI) */}
+      <View style={styles.uiContainer} pointerEvents="box-none">
+        <Text style={styles.title}>iTEC: OVERRIDE</Text>
+        <TouchableOpacity
+          style={styles.clearBtn}
+          onPress={() => socketRef.current.emit("clear_canvas")}
+        >
+          <Text style={styles.btnText}>NUKE CANVAS</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-
+  container: { flex: 1, backgroundColor: "#000" },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#111",
-    padding: 24,
+    backgroundColor: "#050505",
   },
-  infoText: {
-    color: "#fff",
-    fontSize: 16,
-    marginBottom: 12,
-    textAlign: "center",
+  glitchText: {
+    color: "#FF003C",
+    fontSize: 20,
+    fontWeight: "900",
+    marginBottom: 20,
   },
-  primaryBtn: {
-    backgroundColor: "#2563EB",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  primaryBtnText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-
-  pausedLayer: {
-    backgroundColor: "#111",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  pausedText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-
-  overlay: {
-    flex: 1,
+  btn: { backgroundColor: "#FF003C", padding: 15 },
+  btnText: { color: "#FFF", fontWeight: "bold" },
+  uiContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: "space-between",
     paddingTop: 60,
     paddingBottom: 40,
-    paddingHorizontal: 20,
+    alignItems: "center",
   },
   title: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "800",
-    textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowRadius: 8,
+    color: "#FFF",
+    fontSize: 28,
+    fontWeight: "900",
+    textShadowColor: "#FF003C",
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 1,
   },
-
-  scanFrame: {
-    alignSelf: "center",
-    width: 240,
-    height: 240,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.9)",
-    borderRadius: 18,
-    backgroundColor: "transparent",
-  },
-
-  controls: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  controlBtn: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.2)",
+  clearBtn: {
+    backgroundColor: "rgba(255, 0, 60, 0.8)",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  controlText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
+    borderColor: "#FFF",
   },
 });

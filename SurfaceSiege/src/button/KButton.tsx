@@ -14,7 +14,7 @@ export function KButton({ title, onPress, variant = "default" }: KButtonProps) {
       style={({ pressed }) => [
         styles.container,
         pressed ? styles.pressedState : undefined,
-        pressed && variant === "glow" ? styles.pressedGlow : undefined
+        pressed && variant === "glow" ? styles.pressedGlow : undefined,
       ]}
     >
       <Text style={styles.text}>{title}</Text>
@@ -32,7 +32,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: "100%",
 
-    // Umbre standard (când nu e apăsat)
     shadowColor: "#4F46E5",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
@@ -44,12 +43,10 @@ const styles = StyleSheet.create({
     }),
   },
   pressedState: {
-    // Se micșorează subtil
     transform: [{ scale: 0.96 }],
     opacity: 0.9,
   },
   pressedGlow: {
-    // Efectul intens de iluminare (doar dacă are variant="glow")
     backgroundColor: "#6366F1",
     shadowColor: "#818CF8",
     shadowOffset: { width: 0, height: 0 },
