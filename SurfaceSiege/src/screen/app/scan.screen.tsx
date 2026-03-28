@@ -13,7 +13,6 @@ import io from "socket.io-client";
 
 const { width, height } = Dimensions.get("window");
 
-// ATENȚIE: Înlocuiește cu IP-ul real al calculatorului tău din rețeaua locală (ex: 192.168.1.5)
 const SERVER_URL = "http://192.168.1.100:3000";
 
 export const ScanScreen = () => {
@@ -25,7 +24,6 @@ export const ScanScreen = () => {
   useEffect(() => {
     if (!permission?.granted) requestPermission();
 
-    // 1. Inițializare WebSocket
     socketRef.current = io(SERVER_URL);
 
     socketRef.current.on("init_canvas", (existingPaths: any) => {
@@ -36,12 +34,17 @@ export const ScanScreen = () => {
       setPaths((prev) => [...prev, newLine]);
     });
 
+    // 🔥 FIX: ascultă clear
+    socketRef.current.on("canvas_cleared", () => {
+      setPaths([]);
+      setCurrentPath("");
+    });
+
     return () => {
       socketRef.current.disconnect();
     };
   }, [permission]);
 
-  // 2. Logica de desenare (Gesturi)
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt) => {
@@ -55,10 +58,11 @@ export const ScanScreen = () => {
     onPanResponderRelease: () => {
       if (currentPath) {
         const newLine = { d: currentPath, stroke: "#00FF41", strokeWidth: 5 };
-        // Adăugăm linia local
+
         setPaths((prev) => [...prev, newLine]);
-        // Trimitem linia la server pentru a fi văzută de toți
+
         socketRef.current.emit("draw_line", newLine);
+
         setCurrentPath("");
       }
     },
@@ -77,10 +81,8 @@ export const ScanScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* 3. Feed-ul Camerei */}
       <CameraView style={StyleSheet.absoluteFill} facing="back" />
 
-      {/* 4. Canvas-ul de Desen (Peste Cameră) */}
       <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
         <Svg style={StyleSheet.absoluteFill}>
           {paths.map((path, index) => (
@@ -94,11 +96,11 @@ export const ScanScreen = () => {
               strokeLinejoin="round"
             />
           ))}
-          {/* Linia care se desenează în acest moment */}
+
           {currentPath ? (
             <Path
               d={currentPath}
-              stroke="#00FF41"
+              stroke="#0022ff"
               strokeWidth={5}
               fill="none"
               strokeLinecap="round"
@@ -108,9 +110,9 @@ export const ScanScreen = () => {
         </Svg>
       </View>
 
-      {/* 5. Interfața (UI) */}
       <View style={styles.uiContainer} pointerEvents="box-none">
         <Text style={styles.title}>iTEC: OVERRIDE</Text>
+
         <TouchableOpacity
           style={styles.clearBtn}
           onPress={() => socketRef.current.emit("clear_canvas")}
