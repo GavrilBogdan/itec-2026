@@ -5,8 +5,10 @@ import {
   StyleSheet,
   TextInput,
   Alert,
+  TouchableOpacity,
 } from "react-native";
-import { KButton } from "../../button/KButton";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 
 export function RegisterScreen() {
   const [name, setName] = useState("");
@@ -34,87 +36,128 @@ export function RegisterScreen() {
     }
 
     if (!validateEmail(cleanEmail)) {
-      Alert.alert("Eroare", "Adresa de email nu este validă.");
+      Alert.alert("Eroare", "Email invalid.");
       return;
     }
 
     if (!validatePassword(cleanPassword)) {
-      Alert.alert("Eroare", "Parola trebuie să aibă minim 2 caractere.");
+      Alert.alert("Eroare", "Parola prea scurtă.");
       return;
     }
 
-    // TODO: API call de înregistrare
-    console.log("Register with:", {
-      name: cleanName,
-      email: cleanEmail,
-      password: cleanPassword,
-    });
-
-    Alert.alert("Succes", "Datele sunt valide. Poți continua cu înregistrarea.");
+    Alert.alert("Succes", "Cont creat (fake) 🔥");
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Creează un cont</Text>
+    <LinearGradient
+      colors={["#020617", "#0f172a", "#1e3a8a"]}
+      style={styles.container}
+    >
+      {/* CARD */}
+      <BlurView intensity={60} tint="dark" style={styles.card}>
+        <Text style={styles.title}>Create Account</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Nume"
-        value={name}
-        onChangeText={setName}
-      />
+        {/* INPUTS */}
+        <TextInput
+          style={styles.input}
+          placeholder="Name"
+          placeholderTextColor="#7aa2ff"
+          value={name}
+          onChangeText={setName}
+        />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#7aa2ff"
+          value={email}
+          onChangeText={setEmail}
+        />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Parolă"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor="#7aa2ff"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
 
-      <View style={styles.buttonContainer}>
-        <KButton title="Register" onPress={handleRegister} />
-      </View>
-    </View>
+        {/* BUTTON */}
+        <TouchableOpacity style={styles.button} onPress={handleRegister}>
+          <LinearGradient
+            colors={["#2563eb", "#3b82f6"]}
+            style={styles.buttonGradient}
+          >
+            <Text style={styles.buttonText}>REGISTER</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </BlurView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 80,
-    backgroundColor: "#ffffff",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 30,
   },
+
+  // 🔥 GLASS CARD
+  card: {
+    width: "85%",
+    borderRadius: 25,
+    padding: 24,
+    backgroundColor: "rgba(15,23,42,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+
   title: {
     fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 24,
+    color: "#fff",
     textAlign: "center",
+    marginBottom: 24,
+    fontWeight: "600",
+
+    // glow
+    textShadowColor: "#3b82f6",
+    textShadowRadius: 12,
   },
+
   input: {
+    backgroundColor: "rgba(30,41,59,0.8)",
+    borderRadius: 14,
+    padding: 14,
+    color: "#fff",
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
-    fontSize: 16,
+    borderColor: "rgba(255,255,255,0.08)",
   },
-  buttonContainer: {
-    marginTop: 16,
+
+  button: {
+    marginTop: 10,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+
+  buttonGradient: {
+    padding: 16,
     alignItems: "center",
+    borderRadius: 14,
+
+    // glow
+    shadowColor: "#2563eb",
+    shadowOpacity: 0.9,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+
+  buttonText: {
+    color: "#fff",
+    fontWeight: "700",
+    letterSpacing: 1,
   },
 });
