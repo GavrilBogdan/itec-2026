@@ -12,6 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 import { KButton } from "../../button/KButton";
 import { useAuth } from "../../hooks/use-auth.hook";
 import axios from "axios";
+import type { AxiosError } from "axios";
 
 export const LoginScreen = () => {
   const navigation = useNavigation<any>();
@@ -67,12 +68,13 @@ export const LoginScreen = () => {
       login(rawToken);
       Alert.alert("Succes", "Te-ai autentificat cu succes!");
       // navigation.navigate("ActivityScreen");
-    } catch (err: any) {
-      console.log("Status eroare:", err?.response?.status);
-      console.log("Mesaj eroare server:", err?.response?.data);
+    } catch (err: unknown) {
+      const axiosError = err as AxiosError<{ error?: string; message?: string }>;
+      console.log("Status eroare:", axiosError?.response?.status);
+      console.log("Mesaj eroare server:", axiosError?.response?.data);
       const errorMessage =
-        err?.response?.data?.error ||
-        err?.response?.data?.message ||
+        axiosError?.response?.data?.error ||
+        axiosError?.response?.data?.message ||
         "Credențiale incorecte sau server oprit.";
       Alert.alert("Eșec", errorMessage);
     } finally {
