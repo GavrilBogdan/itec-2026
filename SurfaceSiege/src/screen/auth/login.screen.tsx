@@ -89,7 +89,6 @@ export const LoginScreen = () => {
         onChangeText={setEmail}
         placeholderTextColor="#666"
       />
-
       <TextInput
         style={styles.input}
         placeholder="Parolă"
