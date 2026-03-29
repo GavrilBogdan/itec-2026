@@ -7,6 +7,8 @@ import {
   PanResponder,
   Dimensions,
   Modal,
+  Image, // ✅ Adăugat pentru Logo
+  Pressable,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import io from "socket.io-client";
@@ -27,7 +29,6 @@ import {
 
 const { width, height } = Dimensions.get("window");
 
-// 🔗 URL BACKEND
 const SERVER_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
 
 ViroARTrackingTargets.createTargets({
@@ -106,22 +107,22 @@ const MarkerSceneAR = (props: any) => {
   );
 };
 
-// =====================================================================
-// 3. ECRANUL PRINCIPAL
-// =====================================================================
 export const ScanScreen = () => {
-  // ✅ TRAGEM USER-UL REAL DIN JOTAI
   const { userDetails } = useAuth();
 
-  // ✅ MAPĂM DATELE CORECT (Folosind "sub" pentru ID-ul din JWT)
   const loggedUser = useMemo(() => {
     const safeUser = userDetails || {};
     return {
-      id: safeUser.sub || 1, // Secretul era "sub" (subject)
+      id: safeUser.sub || 1,
       nume: safeUser.nume || safeUser.email?.split("@")[0] || "Operator",
-      teamId: safeUser.teamId || 1, // Fallback la 1 dacă echipa e null, să nu crape DB-ul
+      teamId: safeUser.teamId || 1,
     };
   }, [userDetails]);
+
+  // ✅ STATE-URI PENTRU EASTER EGG
+  const [easterEggCount, setEasterEggCount] = useState(0);
+  const [showHaufeLogo, setShowHaufeLogo] = useState(false);
+  const lastClickTime = useRef(0);
 
   const [activeTarget, setActiveTarget] = useState<string | null>(null);
   const [activePosterDbId, setActivePosterDbId] = useState<number | null>(null);
@@ -132,7 +133,6 @@ export const ScanScreen = () => {
   const [tagUser, setTagUser] = useState<string | null>(null);
 
   const lastClosedTarget = useRef({ id: "", time: 0 });
-
   const [selectedColor, setSelectedColor] = useState("rgb(0, 255, 65)");
   const [brushSize, setBrushSize] = useState(5);
   const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
@@ -142,6 +142,24 @@ export const ScanScreen = () => {
   const [b, setB] = useState(65);
 
   const socketRef = useRef<any>(null);
+
+  // ✅ FUNCȚIA DE TRIGGER EASTER EGG
+  const handleEasterEggClick = () => {
+    const now = Date.now();
+    if (now - lastClickTime.current < 400) {
+      setEasterEggCount((prev) => {
+        if (prev + 1 >= 5) {
+          setShowHaufeLogo(true);
+          setTimeout(() => setShowHaufeLogo(false), 3000); // Dispăre după 3 secunde
+          return 0;
+        }
+        return prev + 1;
+      });
+    } else {
+      setEasterEggCount(1);
+    }
+    lastClickTime.current = now;
+  };
 
   useEffect(() => {
     socketRef.current = io(SERVER_URL);
@@ -177,7 +195,6 @@ export const ScanScreen = () => {
       if (dbPoster) {
         setActivePosterDbId(dbPoster.id);
         setActiveTarget(targetName);
-
         const drawingsRes = await axios.get(
           `${SERVER_URL}/war/poster/${dbPoster.id}/drawings`,
         );
@@ -188,7 +205,6 @@ export const ScanScreen = () => {
 
         if (drawingsRes.data.length > 0) {
           const lastDrawing = drawingsRes.data[drawingsRes.data.length - 1];
-          // Extragem numele corect de la ultimul user care a desenat
           const artistName =
             lastDrawing.userName || lastDrawing.user?.nume || "Anonim";
           setTagUser(artistName);
@@ -224,6 +240,7 @@ export const ScanScreen = () => {
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onPanResponderGrant: (evt) => {
+          handleEasterEggClick(); // ✅ Detecție Easter Egg și în timpul desenului!
           if (!activeTarget || !loggedUser) return;
           const { locationX, locationY } = evt.nativeEvent;
           setCurrentPath(`M${locationX},${locationY}`);
@@ -240,12 +257,10 @@ export const ScanScreen = () => {
               stroke: colorRef.current,
               strokeWidth: sizeRef.current,
             };
-
             setDrawingsByTarget((prev) => ({
               ...prev,
               [activeTarget]: [...(prev[activeTarget] || []), newLine],
             }));
-
             socketRef.current.emit("draw_line", {
               posterId: activePosterDbId,
               line: newLine,
@@ -255,7 +270,6 @@ export const ScanScreen = () => {
               teamId: loggedUser.teamId,
               userName: loggedUser.nume,
             });
-
             axios
               .post(`${SERVER_URL}/war/save`, {
                 points: newLine,
@@ -263,10 +277,9 @@ export const ScanScreen = () => {
                 userId: loggedUser.id,
                 teamId: loggedUser.teamId,
                 posterId: activePosterDbId,
-                userName: loggedUser.nume, // Îl trimitem la backend ca să-l poată salva
+                userName: loggedUser.nume,
               })
               .catch((e) => console.log("DB Save Error:", e.message));
-
             setTagUser(`${loggedUser.nume} (Tu)`);
           }
           setCurrentPath("");
@@ -280,6 +293,14 @@ export const ScanScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* ✅ Pressable invizibil pentru Easter Egg (când nu desenezi) */}
+      {!activeTarget && (
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={handleEasterEggClick}
+        />
+      )}
+
       <ViroARSceneNavigator
         autofocus={true}
         initialScene={{ scene: MarkerSceneAR as any }}
@@ -335,7 +356,26 @@ export const ScanScreen = () => {
         </View>
       )}
 
-      {/* --- COLOR PICKER --- */}
+      <Modal visible={showHaufeLogo} transparent animationType="fade">
+        <View style={styles.haufeOverlay}>
+          <View style={styles.haufeContainer}>
+            <Text style={styles.haufeAlert}>
+              [ EXTERNAL SYNDICATE DETECTED ]
+            </Text>
+
+            <Image
+              source={require("../../../assets/haufe_logo.png")}
+              style={styles.haufeLogoImage}
+              resizeMode="contain"
+            />
+
+            <Text style={styles.haufeSubtitle}>
+              GROUP // PARTNER_AUTH_GRANTED
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={isColorPickerVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.colorPickerContainer}>
@@ -386,7 +426,6 @@ export const ScanScreen = () => {
         </View>
       </Modal>
 
-      {/* --- BOTTOM MENU --- */}
       {activeTarget && (
         <View style={styles.bottomWrapper} pointerEvents="box-none">
           <TouchableOpacity
@@ -435,7 +474,6 @@ export const ScanScreen = () => {
                 >
                   <Text style={styles.actionBtnText}>UNDO</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
                   style={styles.nukeBtn}
                   onPress={() => {
@@ -642,4 +680,48 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   applyColorText: { color: "#000", fontWeight: "bold" },
+
+  // ✅ STILURI EASTER EGG
+  haufeOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  haufeAlert: {
+    color: "#44f63b",
+    fontFamily: "monospace",
+    fontSize: 12,
+    marginBottom: 20,
+    letterSpacing: 2,
+  },
+  haufeLogoText: {
+    color: "#2fff00",
+    fontSize: 50,
+    fontWeight: "900",
+    letterSpacing: 5,
+  },
+  haufeSubtitle: {
+    color: "rgba(38, 255, 0, 0.4)",
+    fontFamily: "monospace",
+    fontSize: 10,
+    marginTop: 10,
+  },
+  // ✅ STILUL AJUSTAT SĂ BATĂ CU TEXTUL DE DINAINTE
+  haufeLogoImage: {
+    width: 180, // Redus de la 250 la 180 pentru un look mai discret
+    height: 55, // Redus de la 80 la 55 (aproximativ mărimea textului de 50px)
+    marginVertical: 10, // Puțin spațiu sus-jos
+  },
+
+  haufeContainer: {
+    alignItems: "center",
+    padding: 30,
+    borderWidth: 2,
+    borderColor: "#3B82F6",
+    borderRadius: 20,
+    backgroundColor: "#050505",
+    minWidth: 260, // Am redus și lățimea minimă a containerului să fie mai compact
+  },
 });
