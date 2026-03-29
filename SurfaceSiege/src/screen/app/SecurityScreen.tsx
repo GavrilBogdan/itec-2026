@@ -19,14 +19,13 @@ type Props = {
 export const SecurityScreen: React.FC<Props> = ({ navigation }) => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [isPrivate, setIsPrivate] = useState(false); // Switch vizibilitate cont
+  const [isPrivate, setIsPrivate] = useState(false);
 
   const handleUpdateSecurity = () => {
     if (!currentPassword || !newPassword) {
       Alert.alert("Eroare", "Completează ambele câmpuri pentru parolă.");
       return;
     }
-    // Funcția ta pentru baza de date aici
     Alert.alert("Securitate", "Credențiale actualizate (Simulat).");
     setCurrentPassword("");
     setNewPassword("");

@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import axios from "axios";
-import { useAuth } from "../../hooks/use-auth.hook"; // Verifică path-ul
+import { useAuth } from "../../hooks/use-auth.hook";
 
 const SERVER_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
 
@@ -22,12 +22,10 @@ export const TeamsScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(true);
   const [joiningId, setJoiningId] = useState<number | null>(null);
 
-  // Fallback safe pentru ID-ul userului curent
   const currentUserId = userDetails?.sub || 1;
 
   const fetchTeams = async () => {
     try {
-      // ⚠️ Presupunem că rutele colegului sunt puse pe /teams în app.js
       const res = await axios.get(`${SERVER_URL}/teams`);
       setTeams(res.data);
     } catch (error) {
@@ -44,7 +42,6 @@ export const TeamsScreen = ({ navigation }: any) => {
   const handleJoinTeam = async (teamId: number, teamName: string) => {
     setJoiningId(teamId);
     try {
-      // ✅ Apelează ruta colegului tău
       await axios.post(`${SERVER_URL}/teams/add-member/${teamId}`, {
         userId: currentUserId,
       });
@@ -63,15 +60,12 @@ export const TeamsScreen = ({ navigation }: any) => {
   };
 
   const renderTeamCard = ({ item }: { item: any }) => {
-    // Calculăm datele pentru demo: Câți membri are din backend
     const memberCount = item.members ? item.members.length : 0;
 
-    // Verificăm dacă eu sunt deja în echipa asta (vizual)
     const isMyTeam =
       item.members?.some((m: any) => m.id === currentUserId) ||
       userDetails?.teamId === item.id;
 
-    // Hackathon trick: Generăm un număr "cool" de afișe pe baza id-ului și a membrilor
     const hackedPosters = memberCount * 3 + (item.id % 5);
 
     return (

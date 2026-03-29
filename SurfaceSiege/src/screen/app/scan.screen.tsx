@@ -7,7 +7,7 @@ import {
   PanResponder,
   Dimensions,
   Modal,
-  Image, // ✅ Adăugat pentru Logo
+  Image,
   Pressable,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -15,10 +15,8 @@ import io from "socket.io-client";
 import Slider from "@react-native-community/slider";
 import axios from "axios";
 
-// ✅ IMPORTĂM HOOK-UL VOSTRU REAL DE AUTH
 import { useAuth } from "../../hooks/use-auth.hook";
 
-// --- IMPORTURI VIRO AR ---
 import {
   ViroARScene,
   ViroARImageMarker,
@@ -119,7 +117,6 @@ export const ScanScreen = () => {
     };
   }, [userDetails]);
 
-  // ✅ STATE-URI PENTRU EASTER EGG
   const [easterEggCount, setEasterEggCount] = useState(0);
   const [showHaufeLogo, setShowHaufeLogo] = useState(false);
   const lastClickTime = useRef(0);
@@ -143,7 +140,6 @@ export const ScanScreen = () => {
 
   const socketRef = useRef<any>(null);
 
-  // ✅ FUNCȚIA DE TRIGGER EASTER EGG
   const handleEasterEggClick = () => {
     const now = Date.now();
     if (now - lastClickTime.current < 400) {
@@ -240,7 +236,7 @@ export const ScanScreen = () => {
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onPanResponderGrant: (evt) => {
-          handleEasterEggClick(); // ✅ Detecție Easter Egg și în timpul desenului!
+          handleEasterEggClick();
           if (!activeTarget || !loggedUser) return;
           const { locationX, locationY } = evt.nativeEvent;
           setCurrentPath(`M${locationX},${locationY}`);
@@ -293,7 +289,6 @@ export const ScanScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* ✅ Pressable invizibil pentru Easter Egg (când nu desenezi) */}
       {!activeTarget && (
         <Pressable
           style={StyleSheet.absoluteFill}
@@ -680,8 +675,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   applyColorText: { color: "#000", fontWeight: "bold" },
-
-  // ✅ STILURI EASTER EGG
   haufeOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.85)",
@@ -708,11 +701,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 10,
   },
-  // ✅ STILUL AJUSTAT SĂ BATĂ CU TEXTUL DE DINAINTE
   haufeLogoImage: {
-    width: 180, // Redus de la 250 la 180 pentru un look mai discret
-    height: 55, // Redus de la 80 la 55 (aproximativ mărimea textului de 50px)
-    marginVertical: 10, // Puțin spațiu sus-jos
+    width: 180,
+    height: 55,
+    marginVertical: 10,
   },
 
   haufeContainer: {
@@ -722,6 +714,6 @@ const styles = StyleSheet.create({
     borderColor: "#3B82F6",
     borderRadius: 20,
     backgroundColor: "#050505",
-    minWidth: 260, // Am redus și lățimea minimă a containerului să fie mai compact
+    minWidth: 260,
   },
 });

@@ -15,7 +15,6 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import axios from "axios";
 
-// ✅ Importăm și funcția de LOGOUT din hook
 import { useAuth } from "../../hooks/use-auth.hook";
 
 const SERVER_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
@@ -29,7 +28,6 @@ type Props = {
 };
 
 export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
-  // ✅ Tragem și "logout" din hook
   const { userDetails, logout } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -53,12 +51,10 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoading(true);
 
     try {
-      // 1. Facem update în baza de date
       await axios.put(`${SERVER_URL}/users/${userDetails.sub}/update`, {
         nume: alias,
       });
 
-      // 2. Alertăm user-ul că trebuie să se relogheze pentru a regenera token-ul
       Alert.alert(
         "Identitate Actualizată",
         "Datele au fost salvate în rețea. Sistemul necesită o re-autentificare pentru a aplica noul Alias.",
@@ -66,7 +62,7 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           {
             text: "REBOOT SYSTEM (Login)",
             onPress: () => {
-              logout(); // Ștergem token-ul vechi, îl forțăm să se logheze iar
+              logout();
             },
           },
         ],
