@@ -16,14 +16,12 @@ import {
   Vibration,
   TouchableOpacity,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context"; // Import corect pentru SafeArea
+import { SafeAreaView } from "react-native-safe-area-context"; 
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 
-// ✅ 1. IMPORTĂM HOOK-UL DE AUTH
 import { useAuth } from "../../hooks/use-auth.hook";
 
-// 🔗 URL BACKEND
 const SERVER_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
 
 const PRIMARY_COLOR = "#4F46E5";
@@ -37,7 +35,6 @@ interface ScanActivity {
   timestamp: string;
 }
 
-// Funcție pentru timp relativ
 const getRelativeTime = (timestamp: string) => {
   const now = new Date();
   const past = new Date(timestamp);
@@ -134,13 +131,12 @@ const ActivityCard = React.memo(
 );
 
 export const ActivityScreen = () => {
-  // ✅ 2. TRAGEM USER-UL REAL DIN JOTAI
   const { userDetails } = useAuth();
 
   const loggedUser = useMemo(() => {
     const safeUser = userDetails || {};
     return {
-      id: safeUser.sub || 1, // Folosim ID-ul tău din JWT
+      id: safeUser.sub || 1, 
       nume: safeUser.nume || safeUser.email?.split("@")[0] || "Operator",
     };
   }, [userDetails]);
@@ -149,14 +145,12 @@ export const ActivityScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
 
-  // 🌐 Funcția care aduce DOAR datele modificate de TINE
+  
   const fetchMyPosters = async () => {
     try {
-      // 1. Luăm toate afișele
+      
       const response = await axios.get(`${SERVER_URL}/war/posters`);
       const allPosters = response.data;
-
-      // 2. Pentru fiecare afiș, cerem desenele în paralel (se mișcă super rapid)
       const myActivities: ScanActivity[] = [];
 
       await Promise.all(
@@ -166,14 +160,11 @@ export const ActivityScreen = () => {
               `${SERVER_URL}/war/poster/${poster.id}/drawings`,
             );
             const drawings = drawRes.data;
-
-            // Verificăm dacă printre desene există măcar unul făcut de TINE (loggedUser.id)
             const myDrawings = drawings.filter(
               (d: any) => d.userId === loggedUser.id,
             );
 
             if (myDrawings.length > 0) {
-              // Ai desenat aici! Salvăm ultima oară când ai modificat
               const lastDrawing = myDrawings[myDrawings.length - 1];
 
               myActivities.push({
@@ -185,12 +176,10 @@ export const ActivityScreen = () => {
               });
             }
           } catch (err) {
-            // Ignorăm erorile pentru afișele individuale ca să nu crape tot ecranul
           }
         }),
       );
 
-      // Le sortăm descrescător ca să apară cel mai recent sus
       myActivities.sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
@@ -206,7 +195,7 @@ export const ActivityScreen = () => {
 
   useEffect(() => {
     fetchMyPosters();
-  }, [loggedUser.id]); // Se reîncarcă dacă schimbi contul
+  }, [loggedUser.id]); 
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -218,7 +207,6 @@ export const ActivityScreen = () => {
 
   const handleCardPress = useCallback(async (id: string) => {
     Vibration.vibrate(20);
-    // Refresh silențios când apeși pe card
     await fetchMyPosters();
   }, []);
 

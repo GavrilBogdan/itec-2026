@@ -3,8 +3,6 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-
-// --- IMPORTURI ECRANE ---
 import { LandingScreen } from "./src/screen/auth/landing.screen";
 import { RegisterScreen } from "./src/screen/auth/register.screen";
 import { LoginScreen } from "./src/screen/auth/login.screen";
@@ -13,31 +11,23 @@ import { ScanScreen } from "./src/screen/app/scan.screen";
 import { MapScreen } from "./src/screen/app/map.screen";
 import { SettingsScreen } from "./src/screen/app/settings.screen";
 import { TeamsScreen } from "./src/screen/app/TeamsScreen";
-
-// Importăm noile ecrane exact cu numele fișierelor tale
 import { ProfileScreen } from "./src/screen/app/profilescreen";
 import { SecurityScreen } from "./src/screen/app/SecurityScreen";
 import { NotificationsScreen } from "./src/screen/app/NotificationsScreen";
-
 import { Provider } from "jotai";
 import { tokenAtom, store } from "./src/store";
 import { useAuth } from "./src/hooks/use-auth.hook";
 import axios from "axios";
-
-// 🔗 AXIOS CONFIG
 axios.defaults.baseURL = "https://ana-unfakable-shenita.ngrok-free.dev";
 axios.interceptors.request.use((cfg) => {
   const jwt = store.get(tokenAtom);
   if (jwt) cfg.headers.Authorization = jwt;
   return cfg;
 });
-
-// 🔧 NAVIGATORS
 const Main = createNativeStackNavigator();
 const Auth = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
 
-// 🔐 AUTH STACK
 const AuthStack = () => {
   return (
     <Auth.Navigator screenOptions={{ headerShown: false }}>
@@ -48,7 +38,6 @@ const AuthStack = () => {
   );
 };
 
-// 📱 APP TABS (CU ICONIȚE)
 const AppTabs = () => {
   const { userDetails } = useAuth();
 
@@ -57,7 +46,7 @@ const AppTabs = () => {
       screenOptions={({ route }) => ({
         headerShown: false,
 
-        // 🎨 STYLING CYBER
+        
         tabBarStyle: {
           backgroundColor: "#050505",
           borderTopColor: "#1586ff",
@@ -67,7 +56,7 @@ const AppTabs = () => {
         tabBarInactiveTintColor: "gray",
         tabBarShowLabel: false,
 
-        // 🔥 ICONIȚE
+        
         tabBarIcon: ({ color, size }) => {
           let iconName: any;
 
@@ -93,7 +82,6 @@ const AppTabs = () => {
   );
 };
 
-// 🔁 NAVIGATION ROOT
 const Navigation = () => {
   const { token } = useAuth();
 
@@ -101,12 +89,10 @@ const Navigation = () => {
     <NavigationContainer>
       <Main.Navigator screenOptions={{ headerShown: false }}>
         {token === null ? (
-          // Dacă NU ești logat, vezi doar partea de autentificare
           <Main.Group>
             <Main.Screen name="AuthStack" component={AuthStack} />
           </Main.Group>
         ) : (
-          // Dacă EȘTI logat, vezi tab-urile principale ȘI ecranele de setări
           <Main.Group>
             <Main.Screen name="AppTabs" component={AppTabs} />
             <Main.Screen name="ProfileScreen" component={ProfileScreen} />
@@ -123,7 +109,6 @@ const Navigation = () => {
   );
 };
 
-// 🚀 APP ROOT
 export default function App() {
   return (
     <Provider>
