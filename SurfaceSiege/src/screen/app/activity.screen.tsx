@@ -1,18 +1,30 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   StatusBar,
-  SafeAreaView,
   RefreshControl,
   Animated,
   Vibration,
   TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context"; // Import corect pentru SafeArea
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
+
+// ✅ 1. IMPORTĂM HOOK-UL DE AUTH
+import { useAuth } from "../../hooks/use-auth.hook";
+
+// 🔗 URL BACKEND
+const SERVER_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
 
 const PRIMARY_COLOR = "#4F46E5";
 const TECH_CYAN = "#00e1ff";
@@ -40,10 +52,8 @@ const getRelativeTime = (timestamp: string) => {
   return `acum ${diffInDays} zile`;
 };
 
-// Creăm un Touchable animat pentru carduri
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-// Componenta de Card (Premium & Animată & Interactivă)
 const ActivityCard = React.memo(
   ({
     item,
@@ -124,73 +134,92 @@ const ActivityCard = React.memo(
 );
 
 export const ActivityScreen = () => {
+  // ✅ 2. TRAGEM USER-UL REAL DIN JOTAI
+  const { userDetails } = useAuth();
+
+  const loggedUser = useMemo(() => {
+    const safeUser = userDetails || {};
+    return {
+      id: safeUser.sub || 1, // Folosim ID-ul tău din JWT
+      nume: safeUser.nume || safeUser.email?.split("@")[0] || "Operator",
+    };
+  }, [userDetails]);
+
   const [activities, setActivities] = useState<ScanActivity[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
 
-  // 🌐 Funcția care aduce TOATE datele din Backend
-  const fetchPosters = async () => {
+  // 🌐 Funcția care aduce DOAR datele modificate de TINE
+  const fetchMyPosters = async () => {
     try {
-      const response = await axios.get("/war/posters");
-      const realData = response.data;
+      // 1. Luăm toate afișele
+      const response = await axios.get(`${SERVER_URL}/war/posters`);
+      const allPosters = response.data;
 
-      const mappedActivities: ScanActivity[] = realData.map((poster: any) => ({
-        id: poster.id.toString(),
-        userName: "Sistem AR",
-        posterTitle: poster.nume,
-        location: "Afiș disponibil în rețea",
-        timestamp: poster.createdAt || new Date().toISOString(),
-      }));
+      // 2. Pentru fiecare afiș, cerem desenele în paralel (se mișcă super rapid)
+      const myActivities: ScanActivity[] = [];
 
-      setActivities(mappedActivities);
+      await Promise.all(
+        allPosters.map(async (poster: any) => {
+          try {
+            const drawRes = await axios.get(
+              `${SERVER_URL}/war/poster/${poster.id}/drawings`,
+            );
+            const drawings = drawRes.data;
+
+            // Verificăm dacă printre desene există măcar unul făcut de TINE (loggedUser.id)
+            const myDrawings = drawings.filter(
+              (d: any) => d.userId === loggedUser.id,
+            );
+
+            if (myDrawings.length > 0) {
+              // Ai desenat aici! Salvăm ultima oară când ai modificat
+              const lastDrawing = myDrawings[myDrawings.length - 1];
+
+              myActivities.push({
+                id: poster.id.toString(),
+                userName: loggedUser.nume,
+                posterTitle: poster.nume,
+                location: "Zonă compromisă de tine",
+                timestamp: lastDrawing.createdAt || new Date().toISOString(),
+              });
+            }
+          } catch (err) {
+            // Ignorăm erorile pentru afișele individuale ca să nu crape tot ecranul
+          }
+        }),
+      );
+
+      // Le sortăm descrescător ca să apară cel mai recent sus
+      myActivities.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      );
+
+      setActivities(myActivities);
     } catch (error) {
-      console.error("Eroare la aducerea posterelor din DB:", error);
+      console.error("Eroare la aducerea posterelor tale din DB:", error);
     } finally {
       setInitialLoad(false);
     }
   };
 
   useEffect(() => {
-    fetchPosters();
-  }, []);
+    fetchMyPosters();
+  }, [loggedUser.id]); // Se reîncarcă dacă schimbi contul
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     Vibration.vibrate(40);
-
-    await fetchPosters();
-
+    await fetchMyPosters();
     Vibration.vibrate(20);
     setRefreshing(false);
   }, []);
 
-  // 🎯 Funcția care aduce update DOAR pentru activitatea apăsată
   const handleCardPress = useCallback(async (id: string) => {
-    try {
-      Vibration.vibrate(20);
-
-      const response = await axios.get(`/war/posters/${id}`);
-      const updatedPoster = response.data;
-
-      setActivities((prevActivities) =>
-        prevActivities.map((activity) => {
-          if (activity.id === id) {
-            return {
-              ...activity,
-              posterTitle: updatedPoster.nume,
-              timestamp: updatedPoster.createdAt || activity.timestamp,
-            };
-          }
-          return activity;
-        }),
-      );
-    } catch (error) {
-      console.warn(
-        "Ruta pentru ID specific nu merge. Facem refresh la toată lista ca siguranță.",
-        error,
-      );
-      await fetchPosters();
-    }
+    Vibration.vibrate(20);
+    // Refresh silențios când apeși pe card
+    await fetchMyPosters();
   }, []);
 
   const renderItem = useCallback(
@@ -200,9 +229,8 @@ export const ActivityScreen = () => {
     [handleCardPress],
   );
 
-  // UI pentru când lista este goală
   const renderEmptyState = () => {
-    if (initialLoad) return null; // Nu afișăm nimic cât timp se face primul load
+    if (initialLoad) return null;
     return (
       <View style={styles.emptyContainer}>
         <Ionicons
@@ -210,10 +238,10 @@ export const ActivityScreen = () => {
           size={64}
           color="rgba(0, 225, 255, 0.2)"
         />
-        <Text style={styles.emptyTitle}>Niciun afiș detectat</Text>
+        <Text style={styles.emptyTitle}>Nicio activitate</Text>
         <Text style={styles.emptyText}>
-          Nu am găsit date în rețea momentan. Trage în jos pentru a reîmprospăta
-          sistemul.
+          Încă nu ai revendicat niciun afiș. Intră în modul Scanner și începe să
+          lași o urmă în rețea!
         </Text>
       </View>
     );
@@ -230,9 +258,9 @@ export const ActivityScreen = () => {
           </View>
           <View>
             <Text style={styles.title}>
-              ACTIVITATE <Text style={{ color: PRIMARY_COLOR }}>REȚEA</Text>
+              ISTORIC <Text style={{ color: PRIMARY_COLOR }}>PROPRIU</Text>
             </Text>
-            <Text style={styles.subtitle}>Sistem conectat la Server</Text>
+            <Text style={styles.subtitle}>Logat ca {loggedUser.nume}</Text>
           </View>
         </View>
 
@@ -255,7 +283,7 @@ export const ActivityScreen = () => {
               refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor={TECH_CYAN}
-              title="Se încarcă..."
+              title="Sincronizare cu serverul..."
               titleColor={TECH_CYAN}
               colors={[TECH_CYAN, PRIMARY_COLOR]}
               progressBackgroundColor="#2A2A35"
@@ -400,8 +428,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontWeight: "600",
   },
-
-  // Stiluri noi pentru Empty State
   emptyContainer: {
     flex: 1,
     alignItems: "center",

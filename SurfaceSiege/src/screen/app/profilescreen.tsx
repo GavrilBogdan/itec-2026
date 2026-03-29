@@ -1,5 +1,5 @@
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,8 +10,15 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import axios from "axios";
+
+// ✅ Importăm și funcția de LOGOUT din hook
+import { useAuth } from "../../hooks/use-auth.hook";
+
+const SERVER_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
 
 type RootStackParamList = {
   ProfileScreen: undefined;
@@ -22,19 +29,54 @@ type Props = {
 };
 
 export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
+  // ✅ Tragem și "logout" din hook
+  const { userDetails, logout } = useAuth();
+
   const [isLoading, setIsLoading] = useState(false);
-  const [alias, setAlias] = useState("Vandal_01");
-  const [email, setEmail] = useState("hacker@override.tech");
+  const [alias, setAlias] = useState("");
+  const [email, setEmail] = useState("");
   const [bio, setBio] = useState("Digital artist mapping the urban grid.");
 
+  useEffect(() => {
+    if (userDetails) {
+      setAlias(userDetails.nume || "");
+      setEmail(userDetails.email || "");
+    }
+  }, [userDetails]);
+
   const handleSaveProfile = async () => {
+    if (!userDetails?.sub) {
+      Alert.alert("Eroare", "Nu ești logat corect.");
+      return;
+    }
+
     setIsLoading(true);
-    // Simulare salvare în baza de date
-    setTimeout(() => {
+
+    try {
+      // 1. Facem update în baza de date
+      await axios.put(`${SERVER_URL}/users/${userDetails.sub}/update`, {
+        nume: alias,
+      });
+
+      // 2. Alertăm user-ul că trebuie să se relogheze pentru a regenera token-ul
+      Alert.alert(
+        "Identitate Actualizată",
+        "Datele au fost salvate în rețea. Sistemul necesită o re-autentificare pentru a aplica noul Alias.",
+        [
+          {
+            text: "REBOOT SYSTEM (Login)",
+            onPress: () => {
+              logout(); // Ștergem token-ul vechi, îl forțăm să se logheze iar
+            },
+          },
+        ],
+      );
+    } catch (error: any) {
+      console.error("Eroare la actualizare profil:", error.message);
+      Alert.alert("Eroare", "Nu am putut salva profilul pe server.");
+    } finally {
       setIsLoading(false);
-      alert("Profil actualizat cu succes în baza de date.");
-      navigation.goBack();
-    }, 1500);
+    }
   };
 
   return (
@@ -75,17 +117,6 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                 style={[styles.input, styles.inputDisabled]}
                 value={email}
                 editable={false}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>BIO DE CREATOR</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={bio}
-                onChangeText={setBio}
-                multiline
-                numberOfLines={3}
               />
             </View>
           </View>
