@@ -12,6 +12,7 @@ import { ActivityScreen } from "./src/screen/app/activity.screen";
 import { ScanScreen } from "./src/screen/app/scan.screen";
 import { MapScreen } from "./src/screen/app/map.screen";
 import { SettingsScreen } from "./src/screen/app/settings.screen";
+import { TeamsScreen } from "./src/screen/app/TeamsScreen";
 
 // Importăm noile ecrane exact cu numele fișierelor tale
 import { ProfileScreen } from "./src/screen/app/profilescreen";
@@ -114,6 +115,7 @@ const Navigation = () => {
               name="NotificationsScreen"
               component={NotificationsScreen}
             />
+            <Main.Screen name="TeamsScreen" component={TeamsScreen} />
           </Main.Group>
         )}
       </Main.Navigator>

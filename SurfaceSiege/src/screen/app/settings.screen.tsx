@@ -3,11 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
-import { useSetAtom } from "jotai"; // ✅ Adaugă asta
-import { tokenAtom } from "../../store"; // ✅ Verifică dacă path-ul e corect către store.ts
+import { useSetAtom } from "jotai";
+import { tokenAtom } from "../../store";
 
 export const SettingsScreen = ({ navigation }: any) => {
-  // Aici e magia: funcția care schimbă starea globală
   const setToken = useSetAtom(tokenAtom);
 
   const handleLogout = async () => {
@@ -21,14 +20,8 @@ export const SettingsScreen = ({ navigation }: any) => {
           style: "destructive",
           onPress: async () => {
             try {
-              // 1. Ștergem din memoria telefonului
               await SecureStore.deleteItemAsync("userToken");
-
-              // 2. GOLIM ATOMUL JOTAI (Asta te va scoate instant la Login)
-              // De îndată ce pui null aici, App.tsx va schimba automat
-              // grupul de ecrane de la Main.Group (App) la Main.Group (Auth)
               setToken(null);
-
               console.log("✅ Session terminated globally.");
             } catch (error) {
               console.error("Logout error:", error);
@@ -54,6 +47,21 @@ export const SettingsScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.menuContainer}>
+          {/* ✅ NOU: BUTONUL PENTRU ECHIPE */}
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate("TeamsScreen")} // ASIGURĂ-TE CĂ AI RUTA ASTA ÎN NAVIGATOR
+          >
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>Syndicates (Teams)</Text>
+              <Text style={styles.chevron}>→</Text>
+            </View>
+            <Text style={styles.cardDesc}>
+              Aliante de hackeri. Găsește-ți echipa și cucerește rețeaua.
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.card}
             activeOpacity={0.8}
