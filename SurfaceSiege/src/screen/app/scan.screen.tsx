@@ -13,7 +13,10 @@ import io from "socket.io-client";
 import Slider from "@react-native-community/slider";
 import axios from "axios";
 
-// --- IMPORTURI VIRO AR (SURSĂ COMUNITATE) ---
+// ✅ IMPORTĂM HOOK-UL VOSTRU REAL DE AUTH
+import { useAuth } from "../../hooks/use-auth.hook";
+
+// --- IMPORTURI VIRO AR ---
 import {
   ViroARScene,
   ViroARImageMarker,
@@ -24,12 +27,9 @@ import {
 
 const { width, height } = Dimensions.get("window");
 
-// 🔗 URL BACKEND (NGROK)
+// 🔗 URL BACKEND
 const SERVER_URL = "https://ana-unfakable-shenita.ngrok-free.dev";
 
-// =====================================================================
-// 1. CONFIGURARE TARGETS (IMAGINI)
-// =====================================================================
 ViroARTrackingTargets.createTargets({
   afis1: {
     source: require("../../../assets/afis1.png"),
@@ -83,12 +83,8 @@ ViroARTrackingTargets.createTargets({
   },
 });
 
-// =====================================================================
-// 2. SCENA AR (ELEMENTE 3D)
-// =====================================================================
 const MarkerSceneAR = (props: any) => {
   const { setLockedTarget } = props.sceneNavigator.viroAppProps;
-
   return (
     <ViroARScene>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
@@ -111,20 +107,32 @@ const MarkerSceneAR = (props: any) => {
 };
 
 // =====================================================================
-// 3. ECRANUL PRINCIPAL (LOGICĂ & UI)
+// 3. ECRANUL PRINCIPAL
 // =====================================================================
 export const ScanScreen = () => {
+  // ✅ TRAGEM USER-UL REAL DIN JOTAI
+  const { userDetails } = useAuth();
+
+  // ✅ MAPĂM DATELE CORECT (Folosind "sub" pentru ID-ul din JWT)
+  const loggedUser = useMemo(() => {
+    const safeUser = userDetails || {};
+    return {
+      id: safeUser.sub || 1, // Secretul era "sub" (subject)
+      nume: safeUser.nume || safeUser.email?.split("@")[0] || "Operator",
+      teamId: safeUser.teamId || 1, // Fallback la 1 dacă echipa e null, să nu crape DB-ul
+    };
+  }, [userDetails]);
+
   const [activeTarget, setActiveTarget] = useState<string | null>(null);
   const [activePosterDbId, setActivePosterDbId] = useState<number | null>(null);
   const [drawingsByTarget, setDrawingsByTarget] = useState<
     Record<string, any[]>
   >({});
   const [currentPath, setCurrentPath] = useState<string>("");
+  const [tagUser, setTagUser] = useState<string | null>(null);
 
-  // Ref pentru a preveni re-detectarea instantanee după disconnect
   const lastClosedTarget = useRef({ id: "", time: 0 });
 
-  // UI State
   const [selectedColor, setSelectedColor] = useState("rgb(0, 255, 65)");
   const [brushSize, setBrushSize] = useState(5);
   const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
@@ -135,38 +143,33 @@ export const ScanScreen = () => {
 
   const socketRef = useRef<any>(null);
 
-  // --- SOCKETS ---
   useEffect(() => {
     socketRef.current = io(SERVER_URL);
     socketRef.current.on(
       "new_line",
-      (data: { posterId: number; line: any }) => {
+      (data: { posterId: number; line: any; userName?: string }) => {
         if (activePosterDbId && data.posterId === activePosterDbId) {
           setDrawingsByTarget((prev) => ({
             ...prev,
             [activeTarget!]: [...(prev[activeTarget!] || []), data.line],
           }));
+          if (data.userName) setTagUser(data.userName);
         }
       },
     );
     return () => socketRef.current?.disconnect();
   }, [activePosterDbId, activeTarget]);
 
-  // --- LOGICĂ IDENTIFICARE TARGET ---
   const handleSetLockedTarget = async (targetName: string) => {
     if (activeTarget === targetName) return;
-
-    // Protecție: dacă tocmai am închis acest afiș, așteaptă 3 secunde înainte de re-lock
     const now = Date.now();
     if (
       lastClosedTarget.current.id === targetName &&
       now - lastClosedTarget.current.time < 3000
-    ) {
+    )
       return;
-    }
 
     try {
-      console.log("🔍 Identificat:", targetName);
       const postersRes = await axios.get(`${SERVER_URL}/war/posters`);
       const index = targetName.replace("afis", "");
       const dbPoster = postersRes.data.find((p: any) => p.nume.includes(index));
@@ -182,24 +185,31 @@ export const ScanScreen = () => {
           typeof d.points === "string" ? JSON.parse(d.points) : d.points,
         );
         setDrawingsByTarget((prev) => ({ ...prev, [targetName]: paths }));
+
+        if (drawingsRes.data.length > 0) {
+          const lastDrawing = drawingsRes.data[drawingsRes.data.length - 1];
+          // Extragem numele corect de la ultimul user care a desenat
+          const artistName =
+            lastDrawing.userName || lastDrawing.user?.nume || "Anonim";
+          setTagUser(artistName);
+        } else {
+          setTagUser("Fără modificări");
+        }
       }
     } catch (e) {
       console.error("🚨 Sync Error:", e);
     }
   };
 
-  // --- FIX DISCONNECT ---
   const handleCloseTarget = () => {
     if (activeTarget) {
-      // Setăm ref-ul ca să știm că l-am închis manual acum
       lastClosedTarget.current = { id: activeTarget, time: Date.now() };
       setActiveTarget(null);
       setActivePosterDbId(null);
-      console.log("⚠️ Deconectat manual de la target.");
+      setTagUser(null);
     }
   };
 
-  // --- PAN RESPONDER (DRAWING) ---
   const colorRef = useRef(selectedColor);
   const sizeRef = useRef(brushSize);
   useEffect(() => {
@@ -214,44 +224,55 @@ export const ScanScreen = () => {
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onPanResponderGrant: (evt) => {
-          if (!activeTarget) return;
+          if (!activeTarget || !loggedUser) return;
           const { locationX, locationY } = evt.nativeEvent;
           setCurrentPath(`M${locationX},${locationY}`);
         },
         onPanResponderMove: (evt) => {
-          if (!activeTarget) return;
+          if (!activeTarget || !loggedUser) return;
           const { locationX, locationY } = evt.nativeEvent;
           setCurrentPath((prev) => `${prev} L${locationX},${locationY}`);
         },
         onPanResponderRelease: () => {
-          if (currentPath && activeTarget && activePosterDbId) {
+          if (currentPath && activeTarget && activePosterDbId && loggedUser) {
             const newLine = {
               d: currentPath,
               stroke: colorRef.current,
               strokeWidth: sizeRef.current,
             };
+
             setDrawingsByTarget((prev) => ({
               ...prev,
               [activeTarget]: [...(prev[activeTarget] || []), newLine],
             }));
+
             socketRef.current.emit("draw_line", {
               posterId: activePosterDbId,
               line: newLine,
+              points: newLine,
+              area: 10,
+              userId: loggedUser.id,
+              teamId: loggedUser.teamId,
+              userName: loggedUser.nume,
             });
+
             axios
               .post(`${SERVER_URL}/war/save`, {
                 points: newLine,
                 area: 10,
-                userId: 1,
-                teamId: 1,
+                userId: loggedUser.id,
+                teamId: loggedUser.teamId,
                 posterId: activePosterDbId,
+                userName: loggedUser.nume, // Îl trimitem la backend ca să-l poată salva
               })
               .catch((e) => console.log("DB Save Error:", e.message));
+
+            setTagUser(`${loggedUser.nume} (Tu)`);
           }
           setCurrentPath("");
         },
       }),
-    [activeTarget, activePosterDbId, currentPath],
+    [activeTarget, activePosterDbId, currentPath, loggedUser],
   );
 
   const livePreviewColor = `rgb(${r}, ${g}, ${b})`;
@@ -268,7 +289,6 @@ export const ScanScreen = () => {
 
       {activeTarget ? (
         <>
-          {/* ZONA DE DESEN (Are panHandlers, deci "fură" atingerile pentru desenat) */}
           <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
             <Svg style={StyleSheet.absoluteFill}>
               {activePaths.map((path, index) => (
@@ -293,7 +313,13 @@ export const ScanScreen = () => {
             </Svg>
           </View>
 
-          {/* BUTON DISCONNECT SCOS ÎN AFARĂ (Ca să meargă apăsat) */}
+          <View style={styles.tagBadge}>
+            <Text style={styles.tagText}>
+              <Text style={{ color: "#fff" }}>MODIFIED BY: </Text>
+              {tagUser}
+            </Text>
+          </View>
+
           <TouchableOpacity
             style={styles.closeTargetBtn}
             onPress={handleCloseTarget}
@@ -360,6 +386,7 @@ export const ScanScreen = () => {
         </View>
       </Modal>
 
+      {/* --- BOTTOM MENU --- */}
       {activeTarget && (
         <View style={styles.bottomWrapper} pointerEvents="box-none">
           <TouchableOpacity
@@ -408,16 +435,23 @@ export const ScanScreen = () => {
                 >
                   <Text style={styles.actionBtnText}>UNDO</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                   style={styles.nukeBtn}
-                  onPress={() =>
+                  onPress={() => {
                     setDrawingsByTarget((prev) => ({
                       ...prev,
                       [activeTarget]: [],
-                    }))
-                  }
+                    }));
+                    axios
+                      .delete(
+                        `${SERVER_URL}/war/poster/${activePosterDbId}/clear`,
+                      )
+                      .catch((e) => console.log("🚨 EROARE CLEAR:", e.message));
+                    setTagUser("Curățat de Sistem");
+                  }}
                 >
-                  <Text style={styles.nukeBtnText}>[ NUKE ]</Text>
+                  <Text style={styles.nukeBtnText}>[ STERGE TOT ]</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -450,6 +484,24 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     letterSpacing: 2,
   },
+  tagBadge: {
+    position: "absolute",
+    top: 120,
+    alignSelf: "center",
+    backgroundColor: "rgba(0, 225, 255, 0.15)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#00e1ff",
+    zIndex: 999,
+  },
+  tagText: {
+    color: "#00e1ff",
+    fontFamily: "monospace",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
   closeTargetBtn: {
     position: "absolute",
     top: 60,
@@ -460,7 +512,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ff0000",
     zIndex: 999,
-  }, // Am pus un zIndex ca să fiu sigur că stă deasupra la SVG
+  },
   closeTargetText: {
     color: "#ff0000",
     fontWeight: "bold",
